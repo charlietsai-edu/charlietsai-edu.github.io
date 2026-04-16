@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>水質分析儀：相容性強化版</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { touch-action: auto; overflow-x: hidden; position: relative; }
+    .canvas-wrap { 
+      min-height: 250px;
+      max-height: 55vh; 
+      overflow: hidden; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      background-color: #334155;
+      touch-action: none; 
+    }
+    canvas { 
+      max-width: 100% !important; 
+      max-height: 100% !important; 
+      width: auto !important;
+      height: auto !important;
+      display: block; 
+    }
+    .sidebar { width: 100%; overflow-y: auto; }
+    @media (min-width: 768px) { 
+      .sidebar { width: 400px; } 
+      .canvas-wrap { max-height: 70vh; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+  <div class="max-w-7xl mx-auto p-2">
+    <header class="flex justify-between items-center p-2 mb-1 bg-white rounded-lg shadow-sm">
+        <h1 class="font-bold text-slate-700">水質比色 (相容版)</h1>
+        <button id="btnClearAll" class="text-xs px-2 py-1 border rounded bg-slate-50">重置</button>
+    </header>
+
+    <div class="flex flex-col md:flex-row bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
+        <div class="flex-1 p-2 bg-slate-700">
+          <div class="canvas-wrap rounded border border-slate-500 mb-2">
+            <div id="canvasContainer" class="relative">
+              <canvas id="canvas"></canvas>
+              <canvas id="overlay" class="absolute left-0 top-0 pointer-events-none"></canvas>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button id="btnCancel" class="flex-1 py-3 bg-amber-500 text-white rounded font-bold">刪除所選</button>
+            <button id="btnZoom" class="flex-1 py-3 bg-slate-500 text-white rounded font-bold text-xs">重新對齊</button>
+          </div>
+        </div>
+
+        <aside class="sidebar p-4">
+          <div class="space-y-4">
+            <div class="p-3 bg-blue-50 rounded-lg">
+              <label class="block text-xs font-bold mb-1">上傳照片或直接拍攝</label>
+              <input id="fileInput" type="file" accept="image/*" class="w-full text-xs" />
+            </div>
+
+            <div class="flex gap-2">
+              <button id="modeStandard" class="flex-1 py-3 border-2 rounded text-sm transition-colors">標準色</button>
+              <button id="modeSample" class="flex-1 py-3 border-2 rounded text-sm transition-colors">水樣色</button>
+            </div>
+
+            <div id="standardsList" class="space-y-2 min-h-[40px]"></div>
+            <div id="sampleBox" class="p-2 bg-slate-50 border rounded text-xs">未選取水樣</div>
+
+            <button id="btnAnalyze" class="w-full py-4 bg-indigo-600 text-white rounded-lg font-bold">計算濃度</button>
+            <div id="result" class="p-3 bg-slate-800 text-green-400 text-center font-mono text-2xl rounded">--</div>
+          </div>
+        </aside>
+    </div>
+  </div>
+
+<script>
+let state = {
+    img: new Image(),
+    imgLoaded: false,
+    mode: null, 
+    regions: [], 
+    current: null, 
+    selectedId: null,
+    scale: { x: 1, y: 1 }
+};
+
+const dom = {
+    fileInput: document.getElementById('fileInput'),
+    canvas: document.getElementById('canvas'),
+    overlay: document.getElementById('overlay'),
+    ctx: document.getElementById('canvas').getContext('2d', { alpha: false }),
+    octx: document.getElementById('overlay').getContext('2d'),
+    standardsList: document.getElementById('standardsList'),
+    sampleBox: document.getElementById('sampleBox'),
+    result: document.getElementById('result')
+};
+
+// --- 重點修正：相容性圖片載入邏輯 ---
+dom.fileInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        state.img = new Image();
+        state.img.onload = function() {
+            // 記憶體保護：如果圖片太大，進行降級縮放
+            let targetWidth = state.img.naturalWidth;
+            let targetHeight = state.img.naturalHeight;
+            const MAX_DIM = 2000; 
+            if (targetWidth > MAX_DIM || targetHeight > MAX_DIM) {
+                const ratio = Math.min(MAX_DIM / targetWidth, MAX_DIM / targetHeight);
+                targetWidth = Math.floor(targetWidth * ratio);
+                targetHeight = Math.floor(targetHeight * ratio);
+            }
+
+            // 同步 Canvas 尺寸
+            dom.canvas.width = targetWidth;
+            dom.canvas.height = targetHeight;
+            dom.overlay.width = targetWidth;
+            dom.overlay.height = targetHeight;
+
+            // 確保主繪圖在瀏覽器渲染幀中執行
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    dom.ctx.fillStyle = "#FFFFFF";
+                    dom.ctx.fillRect(0, 0, targetWidth, targetHeight);
+                    dom.ctx.drawImage(state.img, 0, 0, targetWidth, targetHeight);
+                    state.imgLoaded = true;
+                    state.regions = [];
+                    state.selectedId = null;
+                    updateScale();
+                    refreshUI();
+                    renderOverlay();
+                });
+            });
+        };
+        state.img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+function updateScale() {
+    if(!state.imgLoaded) return;
+    const rect = dom.canvas.getBoundingClientRect();
+    if(rect.width === 0) return;
+    state.scale.x = dom.canvas.width / rect.width;
+    state.scale.y = dom.canvas.height / rect.height;
+}
+
+document.getElementById('btnZoom').onclick = () => { updateScale(); renderOverlay(); };
+
+// --- 互動與觸控 ---
+function getPos(e) {
+    const rect = dom.canvas.getBoundingClientRect();
+    const clientX = (e.touches && e.touches.length) ? e.touches[0].clientX : e.clientX;
+    const clientY = (e.touches && e.touches.length) ? e.touches[0].clientY : e.clientY;
+    return {
+        x: (clientX - rect.left) * state.scale.x,
+        y: (clientY - rect.top) * state.scale.y
+    };
+}
+
+function handleStart(e) {
+    if (!state.imgLoaded) return;
+    updateScale();
+    const pos = getPos(e);
+    const hit = state.regions.find(r => pos.x >= r.x && pos.x <= r.x+r.w && pos.y >= r.y && pos.y <= r.y+r.h);
+    if (hit) {
+        state.selectedId = hit.id;
+        refreshUI(); renderOverlay();
+        return;
+    }
+    if (!state.mode) return;
+    state.current = { x0: pos.x, y0: pos.y, x: pos.x, y: pos.y };
+}
+
+function handleMove(e) {
+    if (!state.current) return;
+    if (e.cancelable) e.preventDefault();
+    const pos = getPos(e);
+    state.current.x = pos.x;
+    state.current.y = pos.y;
+    renderOverlay();
+}
+
+function handleEnd() {
+    if (!state.current) return;
+    const { x0, y0, x, y } = state.current;
+    const r = { id: Date.now(), x: Math.min(x0,x), y: Math.min(y0,y), w: Math.abs(x-x0), h: Math.abs(y-y0), type: state.mode };
+    if (r.w > 10 && r.h > 10) {
+        if (r.type === 'sample') state.regions = state.regions.filter(i => i.type !== 'sample');
+        r.avg = getAvgColor(r);
+        state.regions.push(r);
+        state.selectedId = r.id;
+    }
+    state.current = null;
+    refreshUI(); renderOverlay();
+}
+
+dom.canvas.addEventListener('touchstart', (e) => { handleStart(e); if(state.mode) e.preventDefault(); }, {passive: false});
+window.addEventListener('touchmove', handleMove, {passive: false});
+window.addEventListener('touchend', handleEnd);
+dom.canvas.addEventListener('mousedown', handleStart);
+window.addEventListener('mousemove', handleMove);
+window.addEventListener('mouseup', handleEnd);
+
+// --- 色彩分析 ---
+function getAvgColor(r) {
+    const d = dom.ctx.getImageData(r.x, r.y, r.w, r.h).data;
+    let rs=0, gs=0, bs=0, c=0;
+    for (let i=0; i<d.length; i+=4) { rs+=d[i]; gs+=d[i+1]; bs+=d[i+2]; c++; }
+    return { r: rs/c, g: gs/c, b: bs/c };
+}
+
+function rgbToLab(r,g,b){
+    let [R,G,B] = [r/255,g/255,b/255].map(v => v > 0.04045 ? Math.pow((v+0.055)/1.055, 2.4) : v/12.92);
+    let X = R*0.4124 + G*0.3576 + B*0.1804, Y = R*0.2126 + G*0.7152 + B*0.0722, Z = R*0.0193 + G*0.1192 + B*0.9505;
+    [X,Y,Z] = [X/0.95047, Y/1.0, Z/1.08883].map(v => v > 0.008856 ? Math.cbrt(v) : (7.787*v + 16/116));
+    return { L: (116*Y)-16, a: 500*(X-Y), b: 200*(Y-Z) };
+}
+
+function renderOverlay() {
+    dom.octx.clearRect(0,0,dom.overlay.width,dom.overlay.height);
+    state.regions.forEach(r => {
+        dom.octx.lineWidth = (r.id === state.selectedId) ? 10 : 5;
+        dom.octx.strokeStyle = r.type === 'standard' ? '#4f46e5' : '#10b981';
+        dom.octx.strokeRect(r.x, r.y, r.w, r.h);
+    });
+    if (state.current) {
+        dom.octx.setLineDash([15, 10]); dom.octx.strokeStyle = '#f59e0b';
+        dom.octx.strokeRect(state.current.x0, state.current.y0, state.current.x-state.current.x0, state.current.y-state.current.y0);
+        dom.octx.setLineDash([]);
+    }
+}
+
+function refreshUI() {
+    const stds = state.regions.filter(r => r.type === 'standard');
+    dom.standardsList.innerHTML = '';
+    stds.forEach(r => {
+        const item = document.createElement('div');
+        item.className = `flex items-center gap-2 p-1 rounded border ${r.id === state.selectedId ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100'}`;
+        item.innerHTML = `<div class="w-6 h-6 rounded" style="background:rgb(${r.avg.r},${r.avg.g},${r.avg.b})"></div>
+            <input type="number" inputmode="decimal" class="flex-1 p-1 text-sm border rounded" placeholder="值" value="${r.conc || ''}">
+            <button class="text-xs text-red-500 font-bold px-1">X</button>`;
+        item.querySelector('input').onchange = (e) => r.conc = parseFloat(e.target.value);
+        item.querySelector('input').ontouchstart = (e) => e.stopPropagation();
+        item.querySelector('button').onclick = () => { state.regions = state.regions.filter(rg => rg.id !== r.id); refreshUI(); renderOverlay(); };
+        item.onclick = () => { state.selectedId = r.id; renderOverlay(); refreshUI(); };
+        dom.standardsList.appendChild(item);
+    });
+    const samp = state.regions.find(r => r.type === 'sample');
+    dom.sampleBox.innerHTML = samp ? `<div class="w-6 h-6 rounded border" style="background:rgb(${samp.avg.r},${samp.avg.g},${samp.avg.b})"></div>水樣 OK` : '未選取水樣';
+}
+
+document.getElementById('modeStandard').onclick = () => { state.mode='standard'; document.getElementById('modeStandard').className='flex-1 py-3 bg-indigo-600 text-white rounded'; document.getElementById('modeSample').className='flex-1 py-3 border-2 rounded'; };
+document.getElementById('modeSample').onclick = () => { state.mode='sample'; document.getElementById('modeSample').className='flex-1 py-3 bg-emerald-600 text-white rounded'; document.getElementById('modeStandard').className='flex-1 py-3 border-2 rounded'; };
+document.getElementById('btnCancel').onclick = () => { if(state.selectedId){ state.regions = state.regions.filter(r => r.id !== state.selectedId); state.selectedId = null; refreshUI(); renderOverlay(); } };
+
+document.getElementById('btnAnalyze').onclick = () => {
+    const stds = state.regions.filter(r => r.type === 'standard' && r.conc !== null).sort((a,b) => a.conc - b.conc);
+    const samp = state.regions.find(r => r.type === 'sample');
+    if (stds.length < 2 || !samp) return alert('需2個標準值+水樣');
+    const sL = rgbToLab(samp.avg.r, samp.avg.g, samp.avg.b);
+    const sLs = stds.map(s => ({ c: s.conc, l: rgbToLab(s.avg.r, s.avg.g, s.avg.b) }));
+    let res = -1;
+    for (let i=0; i<sLs.length-1; i++) {
+        const s1=sLs[i], s2=sLs[i+1];
+        const d1=Math.sqrt(Math.pow(sL.L-s1.l.L,2)+Math.pow(sL.a-s1.l.a,2)+Math.pow(sL.b-s1.l.b,2));
+        const d2=Math.sqrt(Math.pow(sL.L-s2.l.L,2)+Math.pow(sL.a-s2.l.a,2)+Math.pow(sL.b-s2.l.b,2));
+        const d12=Math.sqrt(Math.pow(s1.l.L-s2.l.L,2)+Math.pow(s1.l.a-s2.l.a,2)+Math.pow(s1.l.b-s2.l.b,2));
+        if (d1+d2 <= d12*1.2) { res = s1.c + (d1/(d1+d2))*(s2.c-s1.c); break; }
+    }
+    if (res===-1) res = sLs.map(s => ({c:s.c, d:Math.sqrt(Math.pow(sL.L-s.l.L,2)+Math.pow(sL.a-s.l.a,2)+Math.pow(sL.b-s.l.b,2))})).sort((a,b)=>a.d-b.d)[0].c;
+    dom.result.innerText = res.toFixed(2);
+};
+
+document.getElementById('btnClearAll').onclick = () => { state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; };
+</script>
+</body>
+</html>
