@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>水質分析儀：最終功能修正版</title>
+  <title>水質比色分析儀</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * { -webkit-user-select: auto; user-select: auto; }
@@ -15,9 +15,6 @@
     @media (min-width: 768px) { body { flex-direction: row; } .viewport { height: 100vh; } .sidebar { width: 400px; height: 100vh; border-top: 0; border-left: 2px solid #e2e8f0; } }
     .std-input { font-size: 16px !important; border: 2px solid #cbd5e1; padding: 10px; border-radius: 8px; width: 100%; background: white; color: black; -webkit-appearance: none; }
     .std-input:focus { border-color: #4f46e5 !important; outline: none; }
-    
-    /* 確保小 X 具備點擊權限 */
-    .del-btn { pointer-events: auto !important; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -33,11 +30,11 @@
   <aside class="sidebar" id="sidebarArea">
     <div class="space-y-6">
       <div class="flex justify-between items-center border-b pb-2">
-        <h2 class="font-bold text-indigo-900">水質數據分析</h2>
+        <h2 class="font-bold text-indigo-900 text-sm">水質數據分析</h2>
         <button id="btnClearAll" class="text-[10px] text-red-500 font-bold border border-red-100 px-2 py-1 rounded">重置系統</button>
       </div>
 
-      <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-200">
+      <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-200">
         <input id="fileInput" type="file" accept="image/*" class="w-full text-xs" />
       </div>
 
@@ -48,7 +45,7 @@
 
       <div id="standardsArea" class="space-y-3">
         <div id="standardsList" class="space-y-3"></div>
-        <button id="btnRemoveAllStds" class="w-full py-2 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold hidden">全部清除設定</button>
+        <button id="btnRemoveAllStds" class="w-full py-3 bg-rose-50 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold hidden">全部清除設定</button>
       </div>
       
       <div id="sampleBox" class="p-2 bg-slate-50 rounded-lg text-center text-[10px]">尚未選取待檢樣本色塊</div>
@@ -64,7 +61,7 @@
           <button id="btnZoomOut" class="flex-1 py-4 bg-slate-100 text-slate-800 rounded-2xl font-bold border">－ 縮小</button>
           <button id="btnZoomReset" class="px-5 py-4 bg-slate-800 text-white rounded-2xl text-xs font-bold">重置視角</button>
         </div>
-        <button id="btnCancel" class="w-full py-2 bg-slate-50 text-slate-400 text-[11px] font-bold rounded-xl border">刪除目前選取框</button>
+        <button id="btnCancel" class="w-full py-4 bg-rose-50 text-rose-500 text-xs font-bold rounded-xl border border-rose-100">刪除目前選取框</button>
       </div>
     </div>
   </aside>
@@ -215,7 +212,7 @@ function refreshUI() {
     
     stds.forEach(r => {
         const item = document.createElement('div');
-        item.className = "flex items-center gap-2 p-2 rounded-xl border border-slate-100 bg-white mb-2 shadow-sm";
+        item.className = `flex items-center gap-2 p-2 rounded-xl border ${r.id === state.selectedId ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 bg-white'} mb-2 shadow-sm`;
         
         item.innerHTML = `
             <div class="w-8 h-8 rounded-lg border" style="background:rgb(${r.avg.r},${r.avg.g},${r.avg.b})"></div>
@@ -223,42 +220,31 @@ function refreshUI() {
                 <input type="number" step="any" inputmode="decimal" 
                        class="std-input" placeholder="濃度" value="${r.conc !== null ? r.conc : ''}">
             </div>
-            <button class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold confirm-btn">確認</button>
-            <button class="text-rose-400 font-bold px-2 text-lg del-btn">✕</button>`;
+            <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold confirm-btn">確認</button>`;
         
         const input = item.querySelector('input');
         const confirmBtn = item.querySelector('.confirm-btn');
-        const delBtn = item.querySelector('.del-btn');
         
         input.addEventListener('touchstart', (e) => e.stopPropagation());
         input.oninput = (e) => r.conc = e.target.value === '' ? null : parseFloat(e.target.value);
         
         confirmBtn.onclick = (e) => { e.stopPropagation(); input.blur(); };
-
-        // 核心修正：手動綁定刪除事件
-        delBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            state.regions = state.regions.filter(rg => rg.id !== r.id);
-            if (state.selectedId === r.id) state.selectedId = null;
-            refreshUI(); renderOverlay();
-        });
-
         item.onclick = () => { state.selectedId = r.id; renderOverlay(); refreshUI(); };
         dom.standardsList.appendChild(item);
     });
     const samp = state.regions.find(r => r.type === 'sample');
     dom.sampleBox.innerHTML = samp ? `<b class="text-emerald-600 text-xs">待檢樣本標註完成</b>` : '尚未選取待檢樣本色塊';
+    dom.sampleBox.onclick = () => { if(samp) { state.selectedId = samp.id; renderOverlay(); refreshUI(); } };
 }
 
-// 核心修正：一鍵清除所有標準色按鍵
-dom.btnRemoveAllStds.addEventListener('click', (e) => {
+dom.btnRemoveAllStds.onclick = (e) => {
     e.preventDefault();
     if (confirm('確定要清除所有標準色設定嗎？')) {
         state.regions = state.regions.filter(r => r.type !== 'standard');
         state.selectedId = null;
         refreshUI(); renderOverlay();
     }
-});
+};
 
 document.getElementById('modeStandard').onclick = () => { state.mode = (state.mode === 'standard') ? null : 'standard'; updateModeUI(); };
 document.getElementById('modeSample').onclick = () => { state.mode = (state.mode === 'sample') ? null : 'sample'; updateModeUI(); };
@@ -281,11 +267,19 @@ document.getElementById('btnAnalyze').onclick = () => {
     }
     if (res===-1) res = sLs.map(s => ({c:s.c, d:Math.sqrt(Math.pow(sL.L-s.l.l.L,2)+Math.pow(sL.a-s.l.a,2)+Math.pow(sL.b-s.l.b,2))})).sort((a,b)=>a.d-b.d)[0].c;
     
-    // 修正：強制精確到兩位
     dom.result.innerText = Number(res).toFixed(2);
 };
 
-document.getElementById('btnCancel').onclick = () => { if(state.selectedId){ state.regions = state.regions.filter(r => r.id !== state.selectedId); state.selectedId = null; refreshUI(); renderOverlay(); } };
+document.getElementById('btnCancel').onclick = () => { 
+    if(state.selectedId){ 
+        state.regions = state.regions.filter(r => r.id !== state.selectedId); 
+        state.selectedId = null; 
+        refreshUI(); renderOverlay(); 
+    } else {
+        alert("請先在照片中點選要刪除的框框。");
+    }
+};
+
 document.getElementById('btnClearAll').onclick = () => { if(confirm('重設系統？照片與數據將全數清空。')){ state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; resetView(); } };
 </script>
 </body>
