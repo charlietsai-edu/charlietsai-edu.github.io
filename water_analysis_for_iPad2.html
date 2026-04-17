@@ -3,72 +3,92 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>水質分析儀：相容性強化版</title>
+  <title>河川水質分析儀：iPad 輸入強化版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { touch-action: auto; overflow-x: hidden; position: relative; }
+    body { touch-action: auto; overflow-x: hidden; background-color: #f1f5f9; }
+    /* 畫布區塊 */
     .canvas-wrap { 
-      min-height: 250px;
-      max-height: 55vh; 
+      min-height: 300px;
+      max-height: 60vh; 
       overflow: hidden; 
       display: flex; 
       align-items: center; 
       justify-content: center; 
-      background-color: #334155;
+      background-color: #1e293b;
       touch-action: none; 
+      position: relative;
     }
     canvas { 
       max-width: 100% !important; 
       max-height: 100% !important; 
-      width: auto !important;
-      height: auto !important;
       display: block; 
     }
-    .sidebar { width: 100%; overflow-y: auto; }
+    /* 側邊欄捲動 */
+    .sidebar { width: 100%; height: 40vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     @media (min-width: 768px) { 
-      .sidebar { width: 400px; } 
-      .canvas-wrap { max-height: 70vh; }
+      .sidebar { width: 400px; height: auto; } 
+      .canvas-wrap { max-height: 75vh; }
+    }
+    /* 確保輸入框在 iPad 上清晰可見且易於點擊 */
+    input[type="number"] {
+      font-size: 16px !important; /* 防止 iOS 自動放大頁面 */
+      border: 2px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 8px;
+      width: 100%;
+    }
+    input[type="number"]:focus {
+      border-color: #4f46e5;
+      outline: none;
+      background-color: #fff;
     }
   </style>
 </head>
-<body class="bg-slate-100 min-h-screen">
+<body class="min-h-screen">
   <div class="max-w-7xl mx-auto p-2">
-    <header class="flex justify-between items-center p-2 mb-1 bg-white rounded-lg shadow-sm">
-        <h1 class="font-bold text-slate-700">水質比色 (相容版)</h1>
-        <button id="btnClearAll" class="text-xs px-2 py-1 border rounded bg-slate-50">重置</button>
+    <header class="flex justify-between items-center p-3 mb-2 bg-white rounded-xl shadow-sm border border-slate-200">
+        <h1 class="font-bold text-indigo-900 text-lg">水質比色分析 (iPad 修正版)</h1>
+        <button id="btnClearAll" class="text-xs px-3 py-1 bg-slate-100 text-slate-600 rounded-lg border">清除數據</button>
     </header>
 
-    <div class="flex flex-col md:flex-row bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
-        <div class="flex-1 p-2 bg-slate-700">
-          <div class="canvas-wrap rounded border border-slate-500 mb-2">
+    <div class="flex flex-col md:flex-row bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        <div class="flex-1 p-2 bg-slate-800">
+          <div class="canvas-wrap rounded-xl mb-2">
             <div id="canvasContainer" class="relative">
               <canvas id="canvas"></canvas>
               <canvas id="overlay" class="absolute left-0 top-0 pointer-events-none"></canvas>
             </div>
           </div>
           <div class="flex gap-2">
-            <button id="btnCancel" class="flex-1 py-3 bg-amber-500 text-white rounded font-bold">刪除所選</button>
-            <button id="btnZoom" class="flex-1 py-3 bg-slate-500 text-white rounded font-bold text-xs">重新對齊</button>
+            <button id="btnCancel" class="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold text-sm shadow-lg">刪除目前選取</button>
+            <button id="btnZoom" class="flex-1 py-3 bg-slate-600 text-white rounded-xl font-bold text-sm shadow-lg">手動重新對齊</button>
           </div>
         </div>
 
-        <aside class="sidebar p-4">
-          <div class="space-y-4">
-            <div class="p-3 bg-blue-50 rounded-lg">
-              <label class="block text-xs font-bold mb-1">上傳照片或直接拍攝</label>
-              <input id="fileInput" type="file" accept="image/*" class="w-full text-xs" />
+        <aside class="sidebar p-5">
+          <div class="space-y-5">
+            <div class="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+              <label class="block text-xs font-bold text-indigo-900 mb-2 uppercase tracking-widest">STEP 1. 匯入照片</label>
+              <input id="fileInput" type="file" accept="image/*" class="w-full text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white" />
             </div>
 
             <div class="flex gap-2">
-              <button id="modeStandard" class="flex-1 py-3 border-2 rounded text-sm transition-colors">標準色</button>
-              <button id="modeSample" class="flex-1 py-3 border-2 rounded text-sm transition-colors">水樣色</button>
+              <button id="modeStandard" class="flex-1 py-3 border-2 rounded-xl text-sm font-bold transition-all">標準色模式</button>
+              <button id="modeSample" class="flex-1 py-3 border-2 rounded-xl text-sm font-bold transition-all">受測水樣模式</button>
             </div>
 
-            <div id="standardsList" class="space-y-2 min-h-[40px]"></div>
-            <div id="sampleBox" class="p-2 bg-slate-50 border rounded text-xs">未選取水樣</div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-widest">標準色清單 (手動輸入數值)</label>
+              <div id="standardsList" class="space-y-3">
+                <p class="text-xs text-slate-400 italic text-center py-4 border-2 border-dashed rounded-xl">請開始在照片上框選色塊...</p>
+              </div>
+            </div>
 
-            <button id="btnAnalyze" class="w-full py-4 bg-indigo-600 text-white rounded-lg font-bold">計算濃度</button>
-            <div id="result" class="p-3 bg-slate-800 text-green-400 text-center font-mono text-2xl rounded">--</div>
+            <div id="sampleBox" class="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-400">尚未選取水樣</div>
+
+            <button id="btnAnalyze" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl active:scale-95 transition-all">執行濃度分析</button>
+            <div id="result" class="p-4 bg-slate-900 text-green-400 text-center font-mono text-3xl rounded-xl shadow-inner border-2 border-slate-700">--</div>
           </div>
         </aside>
     </div>
@@ -96,44 +116,32 @@ const dom = {
     result: document.getElementById('result')
 };
 
-// --- 重點修正：相容性圖片載入邏輯 ---
+// --- 圖片處理 ---
 dom.fileInput.onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
     const reader = new FileReader();
     reader.onload = (event) => {
         state.img = new Image();
         state.img.onload = function() {
-            // 記憶體保護：如果圖片太大，進行降級縮放
-            let targetWidth = state.img.naturalWidth;
-            let targetHeight = state.img.naturalHeight;
-            const MAX_DIM = 2000; 
-            if (targetWidth > MAX_DIM || targetHeight > MAX_DIM) {
-                const ratio = Math.min(MAX_DIM / targetWidth, MAX_DIM / targetHeight);
-                targetWidth = Math.floor(targetWidth * ratio);
-                targetHeight = Math.floor(targetHeight * ratio);
+            let tw = state.img.naturalWidth;
+            let th = state.img.naturalHeight;
+            const MAX = 2000;
+            if (tw > MAX || th > MAX) {
+                const r = Math.min(MAX/tw, MAX/th);
+                tw = Math.floor(tw*r); th = Math.floor(th*r);
             }
+            dom.canvas.width = dom.overlay.width = tw;
+            dom.canvas.height = dom.overlay.height = th;
 
-            // 同步 Canvas 尺寸
-            dom.canvas.width = targetWidth;
-            dom.canvas.height = targetHeight;
-            dom.overlay.width = targetWidth;
-            dom.overlay.height = targetHeight;
-
-            // 確保主繪圖在瀏覽器渲染幀中執行
             requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    dom.ctx.fillStyle = "#FFFFFF";
-                    dom.ctx.fillRect(0, 0, targetWidth, targetHeight);
-                    dom.ctx.drawImage(state.img, 0, 0, targetWidth, targetHeight);
-                    state.imgLoaded = true;
-                    state.regions = [];
-                    state.selectedId = null;
-                    updateScale();
-                    refreshUI();
-                    renderOverlay();
-                });
+                dom.ctx.fillStyle = "#FFFFFF";
+                dom.ctx.fillRect(0, 0, tw, th);
+                dom.ctx.drawImage(state.img, 0, 0, tw, th);
+                state.imgLoaded = true;
+                state.regions = [];
+                state.selectedId = null;
+                setTimeout(() => { updateScale(); refreshUI(); renderOverlay(); }, 300);
             });
         };
         state.img.src = event.target.result;
@@ -144,14 +152,13 @@ dom.fileInput.onchange = (e) => {
 function updateScale() {
     if(!state.imgLoaded) return;
     const rect = dom.canvas.getBoundingClientRect();
-    if(rect.width === 0) return;
     state.scale.x = dom.canvas.width / rect.width;
     state.scale.y = dom.canvas.height / rect.height;
 }
 
 document.getElementById('btnZoom').onclick = () => { updateScale(); renderOverlay(); };
 
-// --- 互動與觸控 ---
+// --- 互動與觸控 (重點優化) ---
 function getPos(e) {
     const rect = dom.canvas.getBoundingClientRect();
     const clientX = (e.touches && e.touches.length) ? e.touches[0].clientX : e.clientX;
@@ -163,22 +170,28 @@ function getPos(e) {
 }
 
 function handleStart(e) {
+    // 如果點擊的是 input 元素，不進行畫布動作
+    if (e.target.tagName === 'INPUT') return;
+
     if (!state.imgLoaded) return;
     updateScale();
     const pos = getPos(e);
+    
+    // 檢查是否點擊到現有區域
     const hit = state.regions.find(r => pos.x >= r.x && pos.x <= r.x+r.w && pos.y >= r.y && pos.y <= r.y+r.h);
     if (hit) {
         state.selectedId = hit.id;
         refreshUI(); renderOverlay();
         return;
     }
+    
     if (!state.mode) return;
     state.current = { x0: pos.x, y0: pos.y, x: pos.x, y: pos.y };
 }
 
 function handleMove(e) {
     if (!state.current) return;
-    if (e.cancelable) e.preventDefault();
+    if (e.cancelable) e.preventDefault(); // 禁止頁面捲動
     const pos = getPos(e);
     state.current.x = pos.x;
     state.current.y = pos.y;
@@ -188,7 +201,7 @@ function handleMove(e) {
 function handleEnd() {
     if (!state.current) return;
     const { x0, y0, x, y } = state.current;
-    const r = { id: Date.now(), x: Math.min(x0,x), y: Math.min(y0,y), w: Math.abs(x-x0), h: Math.abs(y-y0), type: state.mode };
+    const r = { id: Date.now(), x: Math.min(x0,x), y: Math.min(y0,y), w: Math.abs(x-x0), h: Math.abs(y-y0), type: state.mode, conc: null };
     if (r.w > 10 && r.h > 10) {
         if (r.type === 'sample') state.regions = state.regions.filter(i => i.type !== 'sample');
         r.avg = getAvgColor(r);
@@ -199,6 +212,7 @@ function handleEnd() {
     refreshUI(); renderOverlay();
 }
 
+// 監聽畫布點擊
 dom.canvas.addEventListener('touchstart', (e) => { handleStart(e); if(state.mode) e.preventDefault(); }, {passive: false});
 window.addEventListener('touchmove', handleMove, {passive: false});
 window.addEventListener('touchend', handleEnd);
@@ -206,7 +220,7 @@ dom.canvas.addEventListener('mousedown', handleStart);
 window.addEventListener('mousemove', handleMove);
 window.addEventListener('mouseup', handleEnd);
 
-// --- 色彩分析 ---
+// --- 色彩科學 ---
 function getAvgColor(r) {
     const d = dom.ctx.getImageData(r.x, r.y, r.w, r.h).data;
     let rs=0, gs=0, bs=0, c=0;
@@ -224,7 +238,7 @@ function rgbToLab(r,g,b){
 function renderOverlay() {
     dom.octx.clearRect(0,0,dom.overlay.width,dom.overlay.height);
     state.regions.forEach(r => {
-        dom.octx.lineWidth = (r.id === state.selectedId) ? 10 : 5;
+        dom.octx.lineWidth = (r.id === state.selectedId) ? 12 : 6;
         dom.octx.strokeStyle = r.type === 'standard' ? '#4f46e5' : '#10b981';
         dom.octx.strokeRect(r.x, r.y, r.w, r.h);
     });
@@ -235,35 +249,85 @@ function renderOverlay() {
     }
 }
 
+// --- UI 更新 (重點修正輸入框) ---
 function refreshUI() {
     const stds = state.regions.filter(r => r.type === 'standard');
-    dom.standardsList.innerHTML = '';
+    dom.standardsList.innerHTML = stds.length ? '' : '<p class="text-xs text-slate-400 italic text-center py-4 border-2 border-dashed rounded-xl">請開始在照片上框選色塊...</p>';
+    
     stds.forEach(r => {
         const item = document.createElement('div');
-        item.className = `flex items-center gap-2 p-1 rounded border ${r.id === state.selectedId ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100'}`;
-        item.innerHTML = `<div class="w-6 h-6 rounded" style="background:rgb(${r.avg.r},${r.avg.g},${r.avg.b})"></div>
-            <input type="number" inputmode="decimal" class="flex-1 p-1 text-sm border rounded" placeholder="值" value="${r.conc || ''}">
-            <button class="text-xs text-red-500 font-bold px-1">X</button>`;
-        item.querySelector('input').onchange = (e) => r.conc = parseFloat(e.target.value);
-        item.querySelector('input').ontouchstart = (e) => e.stopPropagation();
-        item.querySelector('button').onclick = () => { state.regions = state.regions.filter(rg => rg.id !== r.id); refreshUI(); renderOverlay(); };
-        item.onclick = () => { state.selectedId = r.id; renderOverlay(); refreshUI(); };
+        item.className = `flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${r.id === state.selectedId ? 'border-indigo-500 bg-indigo-50 shadow-md scale-[1.02]' : 'border-slate-100 bg-white'}`;
+        
+        // 核心修正：輸入框設定為 number 且 inputmode 為 decimal
+        item.innerHTML = `
+            <div class="w-10 h-10 rounded-lg shadow-inner border border-slate-200" style="background:rgb(${r.avg.r},${r.avg.g},${r.avg.b})"></div>
+            <div class="flex-1">
+              <input type="number" step="any" inputmode="decimal" class="block w-full font-bold text-lg" placeholder="輸入濃度" value="${r.conc !== null ? r.conc : ''}">
+            </div>
+            <button class="w-10 h-10 bg-rose-50 text-rose-500 rounded-lg font-bold">✕</button>
+        `;
+
+        const input = item.querySelector('input');
+        
+        // iPad 修正：阻止觸控冒泡，確保輸入框能被點擊
+        const stopProp = (e) => e.stopPropagation();
+        input.addEventListener('touchstart', stopProp);
+        input.addEventListener('mousedown', stopProp);
+        
+        // 數值連動
+        input.oninput = (e) => {
+            r.conc = e.target.value === '' ? null : parseFloat(e.target.value);
+        };
+        
+        // 刪除按鈕
+        item.querySelector('button').onclick = (e) => {
+            e.stopPropagation();
+            state.regions = state.regions.filter(rg => rg.id !== r.id);
+            refreshUI(); renderOverlay();
+        };
+
+        // 點擊項目選取
+        item.onclick = () => {
+            state.selectedId = r.id;
+            renderOverlay();
+            refreshUI();
+        };
+
         dom.standardsList.appendChild(item);
     });
+
     const samp = state.regions.find(r => r.type === 'sample');
-    dom.sampleBox.innerHTML = samp ? `<div class="w-6 h-6 rounded border" style="background:rgb(${samp.avg.r},${samp.avg.g},${samp.avg.b})"></div>水樣 OK` : '未選取水樣';
+    dom.sampleBox.innerHTML = samp ? `<div class="flex items-center gap-3"><div class="w-8 h-8 rounded shadow-inner" style="background:rgb(${samp.avg.r},${samp.avg.g},${samp.avg.b})"></div><b class="text-emerald-600 text-sm">受測水樣：選取完成</b></div>` : '尚未選取水樣';
 }
 
-document.getElementById('modeStandard').onclick = () => { state.mode='standard'; document.getElementById('modeStandard').className='flex-1 py-3 bg-indigo-600 text-white rounded'; document.getElementById('modeSample').className='flex-1 py-3 border-2 rounded'; };
-document.getElementById('modeSample').onclick = () => { state.mode='sample'; document.getElementById('modeSample').className='flex-1 py-3 bg-emerald-600 text-white rounded'; document.getElementById('modeStandard').className='flex-1 py-3 border-2 rounded'; };
-document.getElementById('btnCancel').onclick = () => { if(state.selectedId){ state.regions = state.regions.filter(r => r.id !== state.selectedId); state.selectedId = null; refreshUI(); renderOverlay(); } };
+// --- 按鈕邏輯 ---
+document.getElementById('modeStandard').onclick = () => { 
+    state.mode='standard'; 
+    document.getElementById('modeStandard').className='flex-1 py-3 bg-indigo-600 text-white rounded-xl shadow-lg font-bold scale-105 transition-all'; 
+    document.getElementById('modeSample').className='flex-1 py-3 border-2 border-slate-200 bg-white text-slate-500 rounded-xl text-sm font-bold'; 
+};
+document.getElementById('modeSample').onclick = () => { 
+    state.mode='sample'; 
+    document.getElementById('modeSample').className='flex-1 py-3 bg-emerald-600 text-white rounded-xl shadow-lg font-bold scale-105 transition-all'; 
+    document.getElementById('modeStandard').className='flex-1 py-3 border-2 border-slate-200 bg-white text-slate-500 rounded-xl text-sm font-bold'; 
+};
+
+document.getElementById('btnCancel').onclick = () => { 
+    if(state.selectedId){ 
+        state.regions = state.regions.filter(r => r.id !== state.selectedId); 
+        state.selectedId = null; 
+        refreshUI(); renderOverlay(); 
+    } 
+};
 
 document.getElementById('btnAnalyze').onclick = () => {
     const stds = state.regions.filter(r => r.type === 'standard' && r.conc !== null).sort((a,b) => a.conc - b.conc);
     const samp = state.regions.find(r => r.type === 'sample');
-    if (stds.length < 2 || !samp) return alert('需2個標準值+水樣');
+    if (stds.length < 2 || !samp) return alert('分析失敗：請至少輸入 2 個標準濃度數值，並框選 1 個水樣區域。');
+
     const sL = rgbToLab(samp.avg.r, samp.avg.g, samp.avg.b);
     const sLs = stds.map(s => ({ c: s.conc, l: rgbToLab(s.avg.r, s.avg.g, s.avg.b) }));
+    
     let res = -1;
     for (let i=0; i<sLs.length-1; i++) {
         const s1=sLs[i], s2=sLs[i+1];
@@ -273,10 +337,14 @@ document.getElementById('btnAnalyze').onclick = () => {
         if (d1+d2 <= d12*1.2) { res = s1.c + (d1/(d1+d2))*(s2.c-s1.c); break; }
     }
     if (res===-1) res = sLs.map(s => ({c:s.c, d:Math.sqrt(Math.pow(sL.L-s.l.L,2)+Math.pow(sL.a-s.l.a,2)+Math.pow(sL.b-s.l.b,2))})).sort((a,b)=>a.d-b.d)[0].c;
-    dom.result.innerText = res.toFixed(2);
+    dom.result.innerText = res.toFixed(3);
 };
 
-document.getElementById('btnClearAll').onclick = () => { state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; };
+document.getElementById('btnClearAll').onclick = () => { 
+    if(confirm('確定清除所有選取資料？')){
+        state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; 
+    }
+};
 </script>
 </body>
 </html>
