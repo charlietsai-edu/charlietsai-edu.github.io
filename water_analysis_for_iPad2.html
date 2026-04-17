@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>水質分析儀：介面優化版</title>
+  <title>水質分析儀：按鈕位置精確修正版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * { -webkit-user-select: auto; user-select: auto; }
@@ -30,7 +30,7 @@
   <aside class="sidebar" id="sidebarArea">
     <div class="space-y-6">
       <div class="flex justify-between items-center border-b pb-2">
-        <h2 class="font-bold text-indigo-900 text-sm">水質比色分析</h2>
+        <h2 class="font-bold text-indigo-900">水質比色分析</h2>
         <button id="btnClearAll" class="text-[10px] text-red-500 font-bold border border-red-100 px-2 py-1 rounded">重置系統</button>
       </div>
 
@@ -45,22 +45,23 @@
 
       <div class="space-y-2">
         <div id="standardsList" class="space-y-3"></div>
-        <button id="btnRemoveAllStds" class="w-full py-2 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold hidden">全部清除設定</button>
-        <button id="btnCancel" class="w-full py-2 bg-rose-100 text-rose-700 border border-rose-300 rounded-lg text-xs font-bold">刪除目前選取框</button>
+        
+        <button id="btnRemoveAllStds" class="w-full py-3 bg-rose-50 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold hidden">全部清除設定</button>
+        <button id="btnCancel" class="w-full py-3 bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-bold">刪除目前選取框</button>
       </div>
       
       <div id="sampleBox" class="p-2 bg-slate-50 rounded-lg text-center text-[10px] border border-dashed border-slate-200">尚未選取待檢樣本色塊</div>
 
       <div class="space-y-3">
-        <button id="btnAnalyze" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg active:scale-95">計算濃度</button>
+        <button id="btnAnalyze" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg">計算濃度</button>
         <div id="result" class="p-4 bg-slate-900 text-green-400 text-center font-mono text-5xl rounded-xl border-4 border-slate-700">--</div>
       </div>
 
       <div class="pt-4 border-t-2 border-dashed border-slate-100">
-        <div class="flex items-center gap-2 mb-3">
+        <div class="flex items-center gap-2">
           <button id="btnZoomIn" class="flex-1 py-4 bg-slate-100 text-slate-800 rounded-2xl font-bold border">＋ 放大</button>
           <button id="btnZoomOut" class="flex-1 py-4 bg-slate-100 text-slate-800 rounded-2xl font-bold border">－ 縮小</button>
-          <button id="btnZoomReset" class="px-5 py-4 bg-slate-800 text-white rounded-2xl text-xs font-bold">重置</button>
+          <button id="btnZoomReset" class="px-5 py-4 bg-slate-800 text-white rounded-2xl text-xs font-bold">重置視角</button>
         </div>
       </div>
     </div>
@@ -208,7 +209,10 @@ function renderOverlay() {
 function refreshUI() {
     if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
     const stds = state.regions.filter(r => r.type === 'standard');
+    
+    // 按鈕顯示邏輯
     dom.btnRemoveAllStds.style.display = stds.length > 0 ? 'block' : 'none';
+
     dom.standardsList.innerHTML = stds.length ? '' : '<p class="text-[10px] text-slate-300 text-center py-2 italic">標記後輸入數值</p>';
     
     stds.forEach(r => {
@@ -250,19 +254,14 @@ document.getElementById('btnAnalyze').onclick = () => {
     const stds = state.regions.filter(r => r.type === 'standard' && r.conc !== null).sort((a,b) => a.conc - b.conc);
     const samp = state.regions.find(r => r.type === 'sample');
     if (stds.length < 2 || !samp) return alert('需標記 2 個標準值與 1 個待檢樣本區');
-    
     const sLab = rgbToLab(samp.avg);
     const stdLabs = stds.map(s => ({ conc: s.conc, lab: rgbToLab(s.avg) }));
-    
     let res = -1;
     for (let i = 0; i < stdLabs.length - 1; i++) {
         const s1 = stdLabs[i], s2 = stdLabs[i+1];
-        const d1 = getDeltaE(sLab, s1.lab);
-        const d2 = getDeltaE(sLab, s2.lab);
-        const d12 = getDeltaE(s1.lab, s2.lab);
+        const d1 = getDeltaE(sLab, s1.lab), d2 = getDeltaE(sLab, s2.lab), d12 = getDeltaE(s1.lab, s2.lab);
         if (d1 + d2 <= d12 * 1.25) { res = s1.conc + (d1 / (d1 + d2)) * (s2.conc - s1.conc); break; }
     }
-    
     if (res === -1) {
         const sorted = stdLabs.map(s => ({ conc: s.conc, d: getDeltaE(sLab, s.lab) })).sort((a,b) => a.d - b.d);
         res = sorted[0].conc;
@@ -270,7 +269,14 @@ document.getElementById('btnAnalyze').onclick = () => {
     dom.result.innerText = Number(res).toFixed(2);
 };
 
-document.getElementById('btnCancel').onclick = () => { if(state.selectedId){ state.regions = state.regions.filter(r => r.id !== state.selectedId); state.selectedId = null; refreshUI(); renderOverlay(); } };
+document.getElementById('btnCancel').onclick = () => { 
+    if(state.selectedId){ 
+        state.regions = state.regions.filter(r => r.id !== state.selectedId); 
+        state.selectedId = null; 
+        refreshUI(); renderOverlay(); 
+    } 
+};
+
 document.getElementById('btnClearAll').onclick = () => { if(confirm('重設系統？')){ state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; resetView(); } };
 </script>
 </body>
