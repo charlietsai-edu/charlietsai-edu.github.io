@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>水質比色分析儀</title>
+  <title>水質分析儀：計算功能修復版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * { -webkit-user-select: auto; user-select: auto; }
@@ -30,7 +30,7 @@
   <aside class="sidebar" id="sidebarArea">
     <div class="space-y-6">
       <div class="flex justify-between items-center border-b pb-2">
-        <h2 class="font-bold text-indigo-900 text-sm">水質比色分析</h2>
+        <h2 class="font-bold text-indigo-900">水質比色分析</h2>
         <button id="btnClearAll" class="text-[10px] text-red-500 font-bold border border-red-100 px-2 py-1 rounded">重置系統</button>
       </div>
 
@@ -206,14 +206,12 @@ function renderOverlay() {
 function refreshUI() {
     if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
     const stds = state.regions.filter(r => r.type === 'standard');
-    
     dom.btnRemoveAllStds.style.display = stds.length > 0 ? 'block' : 'none';
     dom.standardsList.innerHTML = stds.length ? '' : '<p class="text-[10px] text-slate-300 text-center py-2 italic">標記後輸入數值</p>';
     
     stds.forEach(r => {
         const item = document.createElement('div');
         item.className = `flex items-center gap-2 p-2 rounded-xl border ${r.id === state.selectedId ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 bg-white'} mb-2 shadow-sm`;
-        
         item.innerHTML = `
             <div class="w-8 h-8 rounded-lg border" style="background:rgb(${r.avg.r},${r.avg.g},${r.avg.b})"></div>
             <div class="flex-1">
@@ -221,20 +219,15 @@ function refreshUI() {
                        class="std-input" placeholder="濃度" value="${r.conc !== null ? r.conc : ''}">
             </div>
             <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold confirm-btn">確認</button>`;
-        
         const input = item.querySelector('input');
-        const confirmBtn = item.querySelector('.confirm-btn');
-        
         input.addEventListener('touchstart', (e) => e.stopPropagation());
         input.oninput = (e) => r.conc = e.target.value === '' ? null : parseFloat(e.target.value);
-        
-        confirmBtn.onclick = (e) => { e.stopPropagation(); input.blur(); };
+        item.querySelector('.confirm-btn').onclick = (e) => { e.stopPropagation(); input.blur(); };
         item.onclick = () => { state.selectedId = r.id; renderOverlay(); refreshUI(); };
         dom.standardsList.appendChild(item);
     });
     const samp = state.regions.find(r => r.type === 'sample');
     dom.sampleBox.innerHTML = samp ? `<b class="text-emerald-600 text-xs">待檢樣本標註完成</b>` : '尚未選取待檢樣本色塊';
-    dom.sampleBox.onclick = () => { if(samp) { state.selectedId = samp.id; renderOverlay(); refreshUI(); } };
 }
 
 dom.btnRemoveAllStds.onclick = (e) => {
@@ -259,14 +252,33 @@ document.getElementById('btnAnalyze').onclick = () => {
     const samp = state.regions.find(r => r.type === 'sample');
     if (stds.length < 2 || !samp) return alert('需標記 2 個標準值與 1 個待檢樣本區');
     
-    const sL = rgbToLab(samp.avg.r, samp.avg.g, samp.avg.b), sLs = stds.map(s => ({ c: s.conc, l: rgbToLab(s.avg.r, s.avg.g, s.avg.b) }));
+    // 修正核心計算邏輯
+    const sL = rgbToLab(samp.avg.r, samp.avg.g, samp.avg.b);
+    const sLs = stds.map(s => ({ c: s.conc, l: rgbToLab(s.avg.r, s.avg.g, s.avg.b) }));
+    
     let res = -1;
     for (let i=0; i<sLs.length-1; i++) {
-        const s1=sLs[i], s2=sLs[i+1], d1=Math.sqrt(Math.pow(sL.L-s1.l.L,2)+Math.pow(sL.a-s1.l.a,2)+Math.pow(sL.b-s1.l.b,2)), d2=Math.sqrt(Math.pow(sL.L-s2.l.L,2)+Math.pow(sL.a-s2.l.a,2)+Math.pow(sL.b-s2.l.b,2)), d12=Math.sqrt(Math.pow(s1.l.L-s2.l.L,2)+Math.pow(s1.l.a-s2.l.a,2)+Math.pow(s1.l.b-s2.l.b,2));
-        if (d1+d2 <= d12*1.2) { res = s1.c + (d1/(d1+d2))*(s2.c-s1.c); break; }
+        const s1=sLs[i], s2=sLs[i+1];
+        const d1 = Math.sqrt(Math.pow(sL.L - s1.l.L, 2) + Math.pow(sL.a - s1.l.a, 2) + Math.pow(sL.b - s1.l.b, 2));
+        const d2 = Math.sqrt(Math.pow(sL.L - s2.l.L, 2) + Math.pow(sL.a - s2.l.a, 2) + Math.pow(sL.b - s2.l.b, 2));
+        const d12 = Math.sqrt(Math.pow(s1.l.L - s2.l.L, 2) + Math.pow(s1.l.a - s2.l.a, 2) + Math.pow(s1.l.b - s2.l.b, 2));
+        
+        if (d1 + d2 <= d12 * 1.2) { 
+            res = s1.c + (d1 / (d1 + d2)) * (s2.c - s1.c); 
+            break; 
+        }
     }
-    if (res===-1) res = sLs.map(s => ({c:s.c, d:Math.sqrt(Math.pow(sL.L-s.l.l.L,2)+Math.pow(sL.a-s.l.a,2)+Math.pow(sL.b-s.l.b,2))})).sort((a,b)=>a.d-b.d)[0].c;
     
+    // 若沒落在區間內，取最近鄰
+    if (res === -1) {
+        const sorted = sLs.map(s => ({
+            c: s.c, 
+            d: Math.sqrt(Math.pow(sL.L - s.l.L, 2) + Math.pow(sL.a - s.l.a, 2) + Math.pow(sL.b - s.l.b, 2))
+        })).sort((a, b) => a.d - b.d);
+        res = sorted[0].c;
+    }
+    
+    // 固定呈現到小數點第二位
     dom.result.innerText = Number(res).toFixed(2);
 };
 
@@ -275,12 +287,10 @@ document.getElementById('btnCancel').onclick = () => {
         state.regions = state.regions.filter(r => r.id !== state.selectedId); 
         state.selectedId = null; 
         refreshUI(); renderOverlay(); 
-    } else {
-        alert("請先在照片中點選要刪除的框框。");
-    }
+    } 
 };
 
-document.getElementById('btnClearAll').onclick = () => { if(confirm('重設系統？照片與數據將全數清空。')){ state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; resetView(); } };
+document.getElementById('btnClearAll').onclick = () => { if(confirm('重設系統？')){ state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; resetView(); } };
 </script>
 </body>
 </html>
