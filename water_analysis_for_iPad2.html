@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>水質分析儀：最終穩定修正版</title>
+  <title>水質分析儀：介面優化版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * { -webkit-user-select: auto; user-select: auto; }
@@ -43,9 +43,10 @@
         <button id="modeSample" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all border-slate-200">待檢樣本色塊</button>
       </div>
 
-      <div class="space-y-3">
+      <div class="space-y-2">
         <div id="standardsList" class="space-y-3"></div>
-        <button id="btnRemoveAllStds" class="w-full py-3 bg-rose-50 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold hidden">全部清除設定</button>
+        <button id="btnRemoveAllStds" class="w-full py-2 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold hidden">全部清除設定</button>
+        <button id="btnCancel" class="w-full py-2 bg-rose-100 text-rose-700 border border-rose-300 rounded-lg text-xs font-bold">刪除目前選取框</button>
       </div>
       
       <div id="sampleBox" class="p-2 bg-slate-50 rounded-lg text-center text-[10px] border border-dashed border-slate-200">尚未選取待檢樣本色塊</div>
@@ -61,7 +62,6 @@
           <button id="btnZoomOut" class="flex-1 py-4 bg-slate-100 text-slate-800 rounded-2xl font-bold border">－ 縮小</button>
           <button id="btnZoomReset" class="px-5 py-4 bg-slate-800 text-white rounded-2xl text-xs font-bold">重置</button>
         </div>
-        <button id="btnCancel" class="w-full py-4 bg-rose-50 text-rose-500 text-xs font-bold rounded-xl border border-rose-100">刪除目前選取框</button>
       </div>
     </div>
   </aside>
@@ -88,7 +88,6 @@ const dom = {
     loading: document.getElementById('loading')
 };
 
-// --- 圖片載入 ---
 dom.fileInput.onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -120,14 +119,12 @@ dom.fileInput.onchange = (e) => {
     reader.readAsDataURL(file);
 };
 
-// --- 視角變換 ---
 function updateTransform() { dom.container.style.transform = `translate(${state.posX}px, ${state.posY}px) scale(${state.viewScale})`; }
 function resetView() { state.viewScale = 1.0; state.posX = 0; state.posY = 0; updateTransform(); }
 document.getElementById('btnZoomIn').onclick = (e) => { e.preventDefault(); state.viewScale *= 1.3; updateTransform(); };
 document.getElementById('btnZoomOut').onclick = (e) => { e.preventDefault(); state.viewScale /= 1.3; updateTransform(); };
 document.getElementById('btnZoomReset').onclick = (e) => { e.preventDefault(); resetView(); };
 
-// --- 核心座標 ---
 function getCanvasPos(e) {
     const rect = dom.viewport.getBoundingClientRect();
     const cx = (e.touches && e.touches.length) ? e.touches[0].clientX : e.clientX;
@@ -136,7 +133,8 @@ function getCanvasPos(e) {
 }
 
 function handleStart(e) {
-    if (e.target.closest('#sidebarArea') || !state.imgLoaded) return;
+    if (e.target.closest('#sidebarArea')) return;
+    if (!state.imgLoaded) return;
     const pos = getCanvasPos(e);
     const hit = state.regions.find(r => pos.x >= r.x && pos.x <= r.x+r.w && pos.y >= r.y && pos.y <= r.y+r.h);
     if (hit) { state.selectedId = hit.id; refreshUI(); renderOverlay(); return; }
@@ -181,7 +179,6 @@ dom.viewport.addEventListener('mousedown', handleStart);
 window.addEventListener('mousemove', handleMove);
 window.addEventListener('mouseup', handleEnd);
 
-// --- 色彩科學修正版 ---
 function rgbToLab(rgb){
     let [r, g, b] = [rgb.r/255, rgb.g/255, rgb.b/255].map(v => v > 0.04045 ? Math.pow((v+0.055)/1.055, 2.4) : v/12.92);
     let X = (r*0.4124 + g*0.3576 + b*0.1804)/0.95047, Y = (r*0.2126 + g*0.7152 + b*0.0722)/1.0, Z = (r*0.0193 + g*0.1192 + b*0.9505)/1.08883;
@@ -249,49 +246,32 @@ function updateModeUI() {
     document.getElementById('modeSample').className = `flex-1 py-3 border-2 rounded-xl text-xs font-bold ${state.mode === 'sample' ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`;
 }
 
-// --- 修復後的計算按鈕 ---
 document.getElementById('btnAnalyze').onclick = () => {
     const stds = state.regions.filter(r => r.type === 'standard' && r.conc !== null).sort((a,b) => a.conc - b.conc);
     const samp = state.regions.find(r => r.type === 'sample');
+    if (stds.length < 2 || !samp) return alert('需標記 2 個標準值與 1 個待檢樣本區');
     
-    if (stds.length < 2 || !samp) {
-        alert('計算失敗：請至少輸入 2 個標準色濃度，並標記 1 個待檢樣本區域。');
-        return;
+    const sLab = rgbToLab(samp.avg);
+    const stdLabs = stds.map(s => ({ conc: s.conc, lab: rgbToLab(s.avg) }));
+    
+    let res = -1;
+    for (let i = 0; i < stdLabs.length - 1; i++) {
+        const s1 = stdLabs[i], s2 = stdLabs[i+1];
+        const d1 = getDeltaE(sLab, s1.lab);
+        const d2 = getDeltaE(sLab, s2.lab);
+        const d12 = getDeltaE(s1.lab, s2.lab);
+        if (d1 + d2 <= d12 * 1.25) { res = s1.conc + (d1 / (d1 + d2)) * (s2.conc - s1.conc); break; }
     }
     
-    try {
-        const sLab = rgbToLab(samp.avg);
-        const stdLabs = stds.map(s => ({ conc: s.conc, lab: rgbToLab(s.avg) }));
-        
-        let res = -1;
-        for (let i = 0; i < stdLabs.length - 1; i++) {
-            const s1 = stdLabs[i], s2 = stdLabs[i+1];
-            const d1 = getDeltaE(sLab, s1.lab);
-            const d2 = getDeltaE(sLab, s2.lab);
-            const d12 = getDeltaE(s1.lab, s2.lab);
-            
-            // 線性內插判斷
-            if (d1 + d2 <= d12 * 1.25) { 
-                res = s1.conc + (d1 / (d1 + d2)) * (s2.conc - s1.conc); 
-                break; 
-            }
-        }
-        
-        if (res === -1) {
-            // 超出範圍，取最近鄰
-            const sorted = stdLabs.map(s => ({ conc: s.conc, d: getDeltaE(sLab, s.lab) })).sort((a,b) => a.d - b.d);
-            res = sorted[0].conc;
-        }
-        
-        dom.result.innerText = Number(res).toFixed(2);
-    } catch (err) {
-        console.error(err);
-        alert('計算過程中發生錯誤，請重新選取色塊。');
+    if (res === -1) {
+        const sorted = stdLabs.map(s => ({ conc: s.conc, d: getDeltaE(sLab, s.lab) })).sort((a,b) => a.d - b.d);
+        res = sorted[0].conc;
     }
+    dom.result.innerText = Number(res).toFixed(2);
 };
 
 document.getElementById('btnCancel').onclick = () => { if(state.selectedId){ state.regions = state.regions.filter(r => r.id !== state.selectedId); state.selectedId = null; refreshUI(); renderOverlay(); } };
-document.getElementById('btnClearAll').onclick = () => { if(confirm('確定重設？')){ state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; resetView(); } };
+document.getElementById('btnClearAll').onclick = () => { if(confirm('重設系統？')){ state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; resetView(); } };
 </script>
 </body>
 </html>
