@@ -3,25 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>水質分析儀：iPad 輸入最終強化版</title>
+  <title>水質分析儀：iPad 鍵盤修正版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* 核心修正：允許網頁元素被選取與輸入 */
-    * { -webkit-user-select: auto !important; user-select: auto !important; -webkit-tap-highlight-color: transparent; }
+    /* 允許選取與輸入，這是打字的關鍵 */
+    * { -webkit-user-select: auto; user-select: auto; }
     
-    /* 畫布區域禁止預設手勢 */
-    canvas, #canvasContainer { touch-action: none; -webkit-user-select: none !important; user-select: none !important; }
+    /* 只有畫布區禁止選取，避免框選時選到文字 */
+    #viewport, #viewport * { -webkit-user-select: none; user-select: none; touch-action: none; }
 
     body { background-color: #f1f5f9; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
     
     .viewport { flex: 1; width: 100%; background-color: #0f172a; position: relative; overflow: hidden; }
     #canvasContainer { position: absolute; left: 0; top: 0; transform-origin: 0 0; visibility: hidden; }
-    canvas { display: block; }
     
     .sidebar { 
       height: 48vh; background: white; border-top: 2px solid #e2e8f0; 
-      overflow-y: auto; padding: 16px; z-index: 100;
+      overflow-y: auto; padding: 16px; z-index: 50;
       -webkit-overflow-scrolling: touch;
+      /* 確保側邊欄不攔截觸控導致焦點遺失 */
+      touch-action: pan-y; 
     }
 
     @media (min-width: 768px) { 
@@ -30,38 +31,38 @@
       .sidebar { width: 400px; height: 100vh; border-top: 0; border-left: 2px solid #e2e8f0; } 
     }
 
-    /* 強制輸入框在 iPad 上穩定 */
+    /* 強化輸入框 */
     .std-input {
-      font-size: 16px !important;
+      font-size: 16px !important; 
       border: 2px solid #cbd5e1 !important;
-      background-color: #ffffff !important;
       padding: 12px !important;
       border-radius: 8px;
       width: 100%;
-      pointer-events: auto !important;
-      display: block !important;
+      background: white !important;
+      color: black !important;
+      -webkit-appearance: none;
     }
-    .std-input:focus { border-color: #4f46e5 !important; background-color: #fff !important; outline: none; }
+    .std-input:focus { border-color: #4f46e5 !important; outline: none; }
   </style>
 </head>
 <body>
 
-  <main id="viewport" class="viewport">
+  <div id="viewport" class="viewport">
     <div id="canvasContainer">
       <canvas id="canvas"></canvas>
       <canvas id="overlay" class="absolute left-0 top-0 pointer-events-none"></canvas>
     </div>
     <div id="loading" class="absolute inset-0 flex items-center justify-center text-white bg-slate-900/80 hidden">處理中...</div>
-  </main>
+  </div>
 
-  <aside class="sidebar" id="sidebarArea">
+  <aside class="sidebar">
     <div class="space-y-6">
       <div class="flex justify-between items-center border-b pb-2">
-        <h2 class="font-bold text-indigo-900 text-sm">水質比色數據分析</h2>
-        <button id="btnClearAll" class="text-[10px] text-red-500 font-bold border border-red-100 px-2 py-1 rounded">重置所有</button>
+        <h2 class="font-bold text-indigo-900 text-sm">水質數據分析</h2>
+        <button id="btnClearAll" class="text-[10px] text-red-500 font-bold border border-red-100 px-2 py-1 rounded">重置</button>
       </div>
 
-      <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-200">
+      <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-200">
         <input id="fileInput" type="file" accept="image/*" class="w-full text-xs" />
       </div>
 
@@ -72,9 +73,9 @@
 
       <div id="standardsList" class="space-y-3"></div>
       
-      <div id="sampleBox" class="p-2 bg-slate-50 rounded-lg text-center text-[10px]">尚未選取水樣</div>
+      <div id="sampleBox" class="p-2 bg-slate-50 rounded-lg text-center text-[10px]">尚未標記水樣</div>
 
-      <div class="space-y-3 pt-2">
+      <div class="space-y-3">
         <button id="btnAnalyze" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg">計算濃度</button>
         <div id="result" class="p-4 bg-slate-900 text-green-400 text-center font-mono text-4xl rounded-xl">--</div>
       </div>
@@ -116,11 +117,11 @@ dom.fileInput.onchange = (e) => {
     if (!file) return;
     dom.loading.classList.remove('hidden');
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = (ev) => {
         const temp = new Image();
         temp.onload = () => {
             let tw = temp.width, th = temp.height;
-            const MAX = 2200;
+            const MAX = 2000;
             if (tw > MAX || th > MAX) {
                 const r = Math.min(MAX/tw, MAX/th);
                 tw = Math.floor(tw*r); th = Math.floor(th*r);
@@ -135,18 +136,20 @@ dom.fileInput.onchange = (e) => {
                 dom.container.style.visibility = 'visible';
                 dom.loading.classList.add('hidden');
                 resetView(); refreshUI(); renderOverlay();
-            }, 150);
+            }, 200);
         };
-        temp.src = event.target.result;
+        temp.src = ev.target.result;
     };
     reader.readAsDataURL(file);
 };
 
 function updateTransform() { dom.container.style.transform = `translate(${state.posX}px, ${state.posY}px) scale(${state.viewScale})`; }
 function resetView() { state.viewScale = 1.0; state.posX = 0; state.posY = 0; updateTransform(); }
-document.getElementById('btnZoomIn').onclick = () => { state.viewScale *= 1.35; updateTransform(); };
-document.getElementById('btnZoomOut').onclick = () => { if(state.viewScale > 0.3) { state.viewScale /= 1.35; updateTransform(); } };
-document.getElementById('btnZoomReset').onclick = resetView;
+document.getElementById('btnZoomIn').onclick = resetBtnFocus(0, () => { state.viewScale *= 1.3; updateTransform(); });
+document.getElementById('btnZoomOut').onclick = resetBtnFocus(0, () => { state.viewScale /= 1.3; updateTransform(); });
+document.getElementById('btnZoomReset').onclick = resetBtnFocus(0, resetView);
+
+function resetBtnFocus(mode, fn) { return (e) => { e.preventDefault(); fn(); }; }
 
 function getCanvasPos(e) {
     const rect = dom.viewport.getBoundingClientRect();
@@ -156,7 +159,6 @@ function getCanvasPos(e) {
 }
 
 function handleStart(e) {
-    if (e.target.closest('#sidebarArea')) return; // 確保側邊欄點擊不被攔截
     if (!state.imgLoaded) return;
     const pos = getCanvasPos(e);
     const hit = state.regions.find(r => pos.x >= r.x && pos.x <= r.x+r.w && pos.y >= r.y && pos.y <= r.y+r.h);
@@ -191,12 +193,10 @@ function handleEnd() {
     state.current = null; state.isDragging = false; refreshUI(); renderOverlay();
 }
 
+// 事件監聽只鎖定在畫布區，絕對不干擾側邊欄
 dom.viewport.addEventListener('touchstart', handleStart, {passive: false});
 dom.viewport.addEventListener('touchmove', handleMove, {passive: false});
 dom.viewport.addEventListener('touchend', handleEnd);
-dom.viewport.addEventListener('mousedown', handleStart);
-window.addEventListener('mousemove', handleMove);
-window.addEventListener('mouseup', handleEnd);
 
 function getAvgColor(r) {
     const d = dom.ctx.getImageData(r.x, r.y, r.w, r.h).data;
@@ -222,52 +222,51 @@ function renderOverlay() {
 }
 
 function refreshUI() {
-    // 修正：如果正在輸入中，不要重刷整個清單
+    // 正在輸入時，禁止重新渲染 DOM
     if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
 
     const stds = state.regions.filter(r => r.type === 'standard');
-    dom.standardsList.innerHTML = stds.length ? '' : '<p class="text-[10px] text-slate-300 text-center py-2 italic">尚未圈選色塊</p>';
+    dom.standardsList.innerHTML = stds.length ? '' : '<p class="text-[10px] text-slate-300 text-center py-2 italic">標記後輸入數值</p>';
     
     stds.forEach(r => {
         const item = document.createElement('div');
-        item.className = `flex items-center gap-2 p-2 rounded-xl border ${r.id === state.selectedId ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 bg-white'}`;
+        item.className = "flex items-center gap-2 p-2 rounded-xl border border-slate-100 bg-white mb-2";
         
-        // 增加防止自動修正的屬性
         item.innerHTML = `
-            <div class="w-8 h-8 rounded-lg border shadow-inner" style="background:rgb(${r.avg.r},${r.avg.g},${r.avg.b})"></div>
+            <div class="w-8 h-8 rounded-lg border" style="background:rgb(${r.avg.r},${r.avg.g},${r.avg.b})"></div>
             <div class="flex-1">
                 <input type="number" step="any" inputmode="decimal" 
-                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-                       class="std-input" placeholder="值" value="${r.conc !== null ? r.conc : ''}">
+                       class="std-input" placeholder="濃度" value="${r.conc !== null ? r.conc : ''}">
             </div>
-            <button class="text-rose-400 font-bold px-2 text-sm">✕</button>`;
+            <button class="text-rose-400 font-bold px-2 text-sm del-btn">✕</button>`;
         
         const input = item.querySelector('input');
         
-        // 核心修正：點擊時阻止事件傳遞給畫布，並確保焦點
-        const prevent = (e) => { e.stopPropagation(); };
-        input.addEventListener('touchstart', prevent);
-        input.addEventListener('mousedown', prevent);
-        
+        // iPad 修正：點擊輸入框時，主動阻止所有冒泡並獲取焦點
+        input.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+        }, {passive: true});
+
         input.oninput = (e) => { r.conc = e.target.value === '' ? null : parseFloat(e.target.value); };
         
-        item.querySelector('button').onclick = (e) => {
+        item.querySelector('.del-btn').onclick = (e) => {
             e.stopPropagation();
             state.regions = state.regions.filter(rg => rg.id !== r.id);
             refreshUI(); renderOverlay();
         };
-        item.onclick = () => { state.selectedId = r.id; renderOverlay(); refreshUI(); };
         dom.standardsList.appendChild(item);
     });
+    
     const samp = state.regions.find(r => r.type === 'sample');
-    dom.sampleBox.innerHTML = samp ? `<b class="text-emerald-600 text-xs">水樣標註 OK</b>` : '尚未選取水樣';
+    dom.sampleBox.innerHTML = samp ? `<b class="text-emerald-600 text-xs">水樣標註完成</b>` : '尚未選取水樣';
 }
 
-document.getElementById('modeStandard').onclick = () => { state.mode = (state.mode === 'standard') ? null : 'standard'; updateModeUI(); };
-document.getElementById('modeSample').onclick = () => { state.mode = (state.mode === 'sample') ? null : 'sample'; updateModeUI(); };
+document.getElementById('modeStandard').onclick = (e) => { state.mode = (state.mode === 'standard') ? null : 'standard'; updateModeUI(); };
+document.getElementById('modeSample').onclick = (e) => { state.mode = (state.mode === 'sample') ? null : 'sample'; updateModeUI(); };
+
 function updateModeUI() {
-    document.getElementById('modeStandard').className = `flex-1 py-3 border-2 rounded-xl text-xs font-bold transition-all ${state.mode === 'standard' ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600'}`;
-    document.getElementById('modeSample').className = `flex-1 py-3 border-2 rounded-xl text-xs font-bold transition-all ${state.mode === 'sample' ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600'}`;
+    document.getElementById('modeStandard').className = `flex-1 py-3 border-2 rounded-xl text-xs font-bold ${state.mode === 'standard' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`;
+    document.getElementById('modeSample').className = `flex-1 py-3 border-2 rounded-xl text-xs font-bold ${state.mode === 'sample' ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`;
 }
 
 document.getElementById('btnAnalyze').onclick = () => {
@@ -283,8 +282,9 @@ document.getElementById('btnAnalyze').onclick = () => {
     if (res===-1) res = sLs.map(s => ({c:s.c, d:Math.sqrt(Math.pow(sL.L-s.l.L,2)+Math.pow(sL.a-s.l.a,2)+Math.pow(sL.b-s.l.b,2))})).sort((a,b)=>a.d-b.d)[0].c;
     dom.result.innerText = res.toFixed(3);
 };
+
 document.getElementById('btnCancel').onclick = () => { if(state.selectedId){ state.regions = state.regions.filter(r => r.id !== state.selectedId); state.selectedId = null; refreshUI(); renderOverlay(); } };
-document.getElementById('btnClearAll').onclick = () => { if(confirm('重設所有數據？')){ state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; resetView(); } };
+document.getElementById('btnClearAll').onclick = () => { if(confirm('確定清除？')){ state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; resetView(); } };
 </script>
 </body>
 </html>
