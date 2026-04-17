@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>水質分析儀：操作優化版</title>
+  <title>水質分析儀：介面文字修正版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * { -webkit-user-select: auto; user-select: auto; }
@@ -30,7 +30,7 @@
   <aside class="sidebar" id="sidebarArea">
     <div class="space-y-6">
       <div class="flex justify-between items-center border-b pb-2">
-        <h2 class="font-bold text-indigo-900 text-sm">水質數據分析</h2>
+        <h2 class="font-bold text-indigo-900">水質數據分析</h2>
         <button id="btnClearAll" class="text-[10px] text-red-500 font-bold border border-red-100 px-2 py-1 rounded">重置</button>
       </div>
 
@@ -40,11 +40,11 @@
 
       <div class="flex gap-2">
         <button id="modeStandard" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all border-slate-200">標準濃度色塊</button>
-        <button id="modeSample" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all border-slate-200">標水樣色</button>
+        <button id="modeSample" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all border-slate-200">檢測水樣色塊</button>
       </div>
 
       <div id="standardsList" class="space-y-3"></div>
-      <div id="sampleBox" class="p-2 bg-slate-50 rounded-lg text-center text-[10px]">尚未標記水樣</div>
+      <div id="sampleBox" class="p-2 bg-slate-50 rounded-lg text-center text-[10px]">尚未選取水樣</div>
 
       <div class="space-y-3">
         <button id="btnAnalyze" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg">計算濃度</button>
@@ -183,7 +183,6 @@ function rgbToLab(r,g,b){
     return { L: (116*Y)-16, a: 500*(X-Y), b: 200*(Y-Z) };
 }
 
-// 修正 2：重新加入並強化預覽虛線
 function renderOverlay() {
     dom.octx.clearRect(0,0,dom.overlay.width,dom.overlay.height);
     state.regions.forEach(r => {
@@ -191,7 +190,6 @@ function renderOverlay() {
         dom.octx.strokeStyle = r.type === 'standard' ? '#6366f1' : '#10b981';
         dom.octx.strokeRect(r.x, r.y, r.w, r.h);
     });
-    // 當正在拉框時顯示虛線
     if (state.current) {
         dom.octx.setLineDash([10, 10]);
         dom.octx.lineWidth = 4;
@@ -211,7 +209,6 @@ function refreshUI() {
         const item = document.createElement('div');
         item.className = "flex items-center gap-2 p-2 rounded-xl border border-slate-100 bg-white mb-2 shadow-sm";
         
-        // 修正 3：加入【輸入】確認按鈕
         item.innerHTML = `
             <div class="w-8 h-8 rounded-lg border" style="background:rgb(${r.avg.r},${r.avg.g},${r.avg.b})"></div>
             <div class="flex-1">
@@ -227,10 +224,9 @@ function refreshUI() {
         input.addEventListener('touchstart', (e) => { e.stopPropagation(); }, {passive: true});
         input.oninput = (e) => { r.conc = e.target.value === '' ? null : parseFloat(e.target.value); };
         
-        // 確認鍵邏輯：收回鍵盤
         confirmBtn.onclick = (e) => {
             e.stopPropagation();
-            input.blur(); // 強制失去焦點，iPad 鍵盤就會縮回
+            input.blur(); 
         };
 
         item.querySelector('.del-btn').onclick = (e) => {
@@ -241,7 +237,7 @@ function refreshUI() {
         dom.standardsList.appendChild(item);
     });
     const samp = state.regions.find(r => r.type === 'sample');
-    dom.sampleBox.innerHTML = samp ? `<b class="text-emerald-600 text-xs">水樣標註完成</b>` : '尚未選取水樣';
+    dom.sampleBox.innerHTML = samp ? `<b class="text-emerald-600 text-xs">檢測水樣標註完成</b>` : '尚未選取水樣色塊';
 }
 
 document.getElementById('modeStandard').onclick = (e) => { state.mode = (state.mode === 'standard') ? null : 'standard'; updateModeUI(); };
