@@ -3,45 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>水質分析儀：iPad 鍵盤修正版</title>
+  <title>水質分析儀：操作優化版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* 允許選取與輸入，這是打字的關鍵 */
     * { -webkit-user-select: auto; user-select: auto; }
-    
-    /* 只有畫布區禁止選取，避免框選時選到文字 */
     #viewport, #viewport * { -webkit-user-select: none; user-select: none; touch-action: none; }
-
     body { background-color: #f1f5f9; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-    
     .viewport { flex: 1; width: 100%; background-color: #0f172a; position: relative; overflow: hidden; }
     #canvasContainer { position: absolute; left: 0; top: 0; transform-origin: 0 0; visibility: hidden; }
-    
-    .sidebar { 
-      height: 48vh; background: white; border-top: 2px solid #e2e8f0; 
-      overflow-y: auto; padding: 16px; z-index: 50;
-      -webkit-overflow-scrolling: touch;
-      /* 確保側邊欄不攔截觸控導致焦點遺失 */
-      touch-action: pan-y; 
-    }
-
-    @media (min-width: 768px) { 
-      body { flex-direction: row; } 
-      .viewport { height: 100vh; } 
-      .sidebar { width: 400px; height: 100vh; border-top: 0; border-left: 2px solid #e2e8f0; } 
-    }
-
-    /* 強化輸入框 */
-    .std-input {
-      font-size: 16px !important; 
-      border: 2px solid #cbd5e1 !important;
-      padding: 12px !important;
-      border-radius: 8px;
-      width: 100%;
-      background: white !important;
-      color: black !important;
-      -webkit-appearance: none;
-    }
+    .sidebar { height: 48vh; background: white; border-top: 2px solid #e2e8f0; overflow-y: auto; padding: 16px; z-index: 50; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+    @media (min-width: 768px) { body { flex-direction: row; } .viewport { height: 100vh; } .sidebar { width: 400px; height: 100vh; border-top: 0; border-left: 2px solid #e2e8f0; } }
+    .std-input { font-size: 16px !important; border: 2px solid #cbd5e1; padding: 10px; border-radius: 8px; width: 100%; background: white; color: black; -webkit-appearance: none; }
     .std-input:focus { border-color: #4f46e5 !important; outline: none; }
   </style>
 </head>
@@ -55,7 +27,7 @@
     <div id="loading" class="absolute inset-0 flex items-center justify-center text-white bg-slate-900/80 hidden">處理中...</div>
   </div>
 
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebarArea">
     <div class="space-y-6">
       <div class="flex justify-between items-center border-b pb-2">
         <h2 class="font-bold text-indigo-900 text-sm">水質數據分析</h2>
@@ -67,12 +39,11 @@
       </div>
 
       <div class="flex gap-2">
-        <button id="modeStandard" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all border-slate-200">標標準色</button>
+        <button id="modeStandard" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all border-slate-200">標準濃度色塊</button>
         <button id="modeSample" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all border-slate-200">標水樣色</button>
       </div>
 
       <div id="standardsList" class="space-y-3"></div>
-      
       <div id="sampleBox" class="p-2 bg-slate-50 rounded-lg text-center text-[10px]">尚未標記水樣</div>
 
       <div class="space-y-3">
@@ -145,11 +116,9 @@ dom.fileInput.onchange = (e) => {
 
 function updateTransform() { dom.container.style.transform = `translate(${state.posX}px, ${state.posY}px) scale(${state.viewScale})`; }
 function resetView() { state.viewScale = 1.0; state.posX = 0; state.posY = 0; updateTransform(); }
-document.getElementById('btnZoomIn').onclick = resetBtnFocus(0, () => { state.viewScale *= 1.3; updateTransform(); });
-document.getElementById('btnZoomOut').onclick = resetBtnFocus(0, () => { state.viewScale /= 1.3; updateTransform(); });
-document.getElementById('btnZoomReset').onclick = resetBtnFocus(0, resetView);
-
-function resetBtnFocus(mode, fn) { return (e) => { e.preventDefault(); fn(); }; }
+document.getElementById('btnZoomIn').onclick = (e) => { e.preventDefault(); state.viewScale *= 1.3; updateTransform(); };
+document.getElementById('btnZoomOut').onclick = (e) => { e.preventDefault(); state.viewScale /= 1.3; updateTransform(); };
+document.getElementById('btnZoomReset').onclick = (e) => { e.preventDefault(); resetView(); };
 
 function getCanvasPos(e) {
     const rect = dom.viewport.getBoundingClientRect();
@@ -193,10 +162,12 @@ function handleEnd() {
     state.current = null; state.isDragging = false; refreshUI(); renderOverlay();
 }
 
-// 事件監聽只鎖定在畫布區，絕對不干擾側邊欄
 dom.viewport.addEventListener('touchstart', handleStart, {passive: false});
 dom.viewport.addEventListener('touchmove', handleMove, {passive: false});
 dom.viewport.addEventListener('touchend', handleEnd);
+dom.viewport.addEventListener('mousedown', handleStart);
+window.addEventListener('mousemove', handleMove);
+window.addEventListener('mouseup', handleEnd);
 
 function getAvgColor(r) {
     const d = dom.ctx.getImageData(r.x, r.y, r.w, r.h).data;
@@ -212,6 +183,7 @@ function rgbToLab(r,g,b){
     return { L: (116*Y)-16, a: 500*(X-Y), b: 200*(Y-Z) };
 }
 
+// 修正 2：重新加入並強化預覽虛線
 function renderOverlay() {
     dom.octx.clearRect(0,0,dom.overlay.width,dom.overlay.height);
     state.regions.forEach(r => {
@@ -219,36 +191,48 @@ function renderOverlay() {
         dom.octx.strokeStyle = r.type === 'standard' ? '#6366f1' : '#10b981';
         dom.octx.strokeRect(r.x, r.y, r.w, r.h);
     });
+    // 當正在拉框時顯示虛線
+    if (state.current) {
+        dom.octx.setLineDash([10, 10]);
+        dom.octx.lineWidth = 4;
+        dom.octx.strokeStyle = '#f59e0b';
+        const { x0, y0, x, y } = state.current;
+        dom.octx.strokeRect(Math.min(x0,x), Math.min(y0,y), Math.abs(x-x0), Math.abs(y-y0));
+        dom.octx.setLineDash([]);
+    }
 }
 
 function refreshUI() {
-    // 正在輸入時，禁止重新渲染 DOM
     if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
-
     const stds = state.regions.filter(r => r.type === 'standard');
     dom.standardsList.innerHTML = stds.length ? '' : '<p class="text-[10px] text-slate-300 text-center py-2 italic">標記後輸入數值</p>';
     
     stds.forEach(r => {
         const item = document.createElement('div');
-        item.className = "flex items-center gap-2 p-2 rounded-xl border border-slate-100 bg-white mb-2";
+        item.className = "flex items-center gap-2 p-2 rounded-xl border border-slate-100 bg-white mb-2 shadow-sm";
         
+        // 修正 3：加入【輸入】確認按鈕
         item.innerHTML = `
             <div class="w-8 h-8 rounded-lg border" style="background:rgb(${r.avg.r},${r.avg.g},${r.avg.b})"></div>
             <div class="flex-1">
                 <input type="number" step="any" inputmode="decimal" 
                        class="std-input" placeholder="濃度" value="${r.conc !== null ? r.conc : ''}">
             </div>
+            <button class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold confirm-btn">確認</button>
             <button class="text-rose-400 font-bold px-2 text-sm del-btn">✕</button>`;
         
         const input = item.querySelector('input');
+        const confirmBtn = item.querySelector('.confirm-btn');
         
-        // iPad 修正：點擊輸入框時，主動阻止所有冒泡並獲取焦點
-        input.addEventListener('touchstart', (e) => {
-            e.stopPropagation();
-        }, {passive: true});
-
+        input.addEventListener('touchstart', (e) => { e.stopPropagation(); }, {passive: true});
         input.oninput = (e) => { r.conc = e.target.value === '' ? null : parseFloat(e.target.value); };
         
+        // 確認鍵邏輯：收回鍵盤
+        confirmBtn.onclick = (e) => {
+            e.stopPropagation();
+            input.blur(); // 強制失去焦點，iPad 鍵盤就會縮回
+        };
+
         item.querySelector('.del-btn').onclick = (e) => {
             e.stopPropagation();
             state.regions = state.regions.filter(rg => rg.id !== r.id);
@@ -256,7 +240,6 @@ function refreshUI() {
         };
         dom.standardsList.appendChild(item);
     });
-    
     const samp = state.regions.find(r => r.type === 'sample');
     dom.sampleBox.innerHTML = samp ? `<b class="text-emerald-600 text-xs">水樣標註完成</b>` : '尚未選取水樣';
 }
