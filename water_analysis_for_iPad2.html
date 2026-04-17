@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>水質分析儀：介面文字修正版</title>
+  <title>水質分析儀：介面文字最終修正</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * { -webkit-user-select: auto; user-select: auto; }
@@ -40,11 +40,11 @@
 
       <div class="flex gap-2">
         <button id="modeStandard" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all border-slate-200">標準濃度色塊</button>
-        <button id="modeSample" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all border-slate-200">檢測水樣色塊</button>
+        <button id="modeSample" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all border-slate-200">待檢樣本色塊</button>
       </div>
 
       <div id="standardsList" class="space-y-3"></div>
-      <div id="sampleBox" class="p-2 bg-slate-50 rounded-lg text-center text-[10px]">尚未選取水樣</div>
+      <div id="sampleBox" class="p-2 bg-slate-50 rounded-lg text-center text-[10px]">尚未選取待檢樣本色塊</div>
 
       <div class="space-y-3">
         <button id="btnAnalyze" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg">計算濃度</button>
@@ -237,7 +237,8 @@ function refreshUI() {
         dom.standardsList.appendChild(item);
     });
     const samp = state.regions.find(r => r.type === 'sample');
-    dom.sampleBox.innerHTML = samp ? `<b class="text-emerald-600 text-xs">檢測水樣標註完成</b>` : '尚未選取水樣色塊';
+    // 文字修正：待檢樣本標註完成
+    dom.sampleBox.innerHTML = samp ? `<b class="text-emerald-600 text-xs">待檢樣本標註完成</b>` : '尚未選取待檢樣本色塊';
 }
 
 document.getElementById('modeStandard').onclick = (e) => { state.mode = (state.mode === 'standard') ? null : 'standard'; updateModeUI(); };
@@ -251,7 +252,7 @@ function updateModeUI() {
 document.getElementById('btnAnalyze').onclick = () => {
     const stds = state.regions.filter(r => r.type === 'standard' && r.conc !== null).sort((a,b) => a.conc - b.conc);
     const samp = state.regions.find(r => r.type === 'sample');
-    if (stds.length < 2 || !samp) return alert('需標記 2 個標準值與 1 個水樣區');
+    if (stds.length < 2 || !samp) return alert('需標記 2 個標準值與 1 個待檢樣本區');
     const sL = rgbToLab(samp.avg.r, samp.avg.g, samp.avg.b), sLs = stds.map(s => ({ c: s.conc, l: rgbToLab(s.avg.r, s.avg.g, s.avg.b) }));
     let res = -1;
     for (let i=0; i<sLs.length-1; i++) {
