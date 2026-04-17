@@ -3,54 +3,53 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>水質分析儀：iPad 穩定版</title>
+  <title>河川分析儀：介面優化版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { background-color: #f1f5f9; overflow: hidden; height: 100vh; display: flex; flex-direction: column; -webkit-user-select: none; }
     
     .viewport { 
-      flex: 1;
-      width: 100%;
-      min-height: 300px;
-      background-color: #0f172a;
-      position: relative;
+      flex: 1; 
+      width: 100%; 
+      background-color: #0f172a; 
+      position: relative; 
       overflow: hidden; 
-      touch-action: none;
-      border-radius: 12px;
+      touch-action: none; 
+      border-radius: 0 0 12px 12px; 
     }
 
     #canvasContainer { 
-      position: absolute;
-      left: 0; top: 0;
-      transform-origin: 0 0;
-      cursor: grab;
-      display: none; /* 初始隱藏，載入後才顯示 */
+      position: absolute; 
+      left: 0; top: 0; 
+      transform-origin: 0 0; 
+      cursor: grab; 
+      visibility: hidden; 
     }
 
     canvas { display: block; }
 
     .sidebar { 
-      height: 40vh; 
+      height: 45vh; 
       background: white; 
-      border-top: 1px solid #e2e8f0;
-      overflow-y: auto;
-      padding: 12px;
-      -webkit-overflow-scrolling: touch;
+      border-top: 1px solid #e2e8f0; 
+      overflow-y: auto; 
+      padding: 16px; 
+      -webkit-overflow-scrolling: touch; 
     }
 
-    @media (min-width: 768px) {
-      body { flex-direction: row; }
-      .viewport { height: 100vh; border-radius: 0; }
-      .sidebar { width: 380px; height: 100vh; border-top: 0; border-left: 1px solid #e2e8f0; }
+    @media (min-width: 768px) { 
+      body { flex-direction: row; } 
+      .viewport { height: 100vh; border-radius: 0; } 
+      .sidebar { width: 400px; height: 100vh; border-top: 0; border-left: 1px solid #e2e8f0; } 
     }
 
-    .std-input {
-      font-size: 16px !important;
-      border: 2px solid #e2e8f0;
-      padding: 8px;
-      border-radius: 8px;
-      width: 100%;
-      background: white;
+    .std-input { 
+      font-size: 16px !important; 
+      border: 2px solid #e2e8f0; 
+      padding: 8px; 
+      border-radius: 8px; 
+      width: 100%; 
+      background: white; 
     }
   </style>
 </head>
@@ -61,44 +60,46 @@
       <canvas id="canvas"></canvas>
       <canvas id="overlay" class="absolute left-0 top-0 pointer-events-none"></canvas>
     </div>
-    
-    <div class="absolute bottom-4 left-4 flex gap-2">
-      <button id="btnZoomIn" class="w-10 h-10 bg-white shadow-lg rounded-full font-bold text-lg">＋</button>
-      <button id="btnZoomOut" class="w-10 h-10 bg-white shadow-lg rounded-full font-bold text-lg">－</button>
-      <button id="btnZoomReset" class="px-3 h-10 bg-indigo-600 text-white shadow-lg rounded-full text-xs font-bold">重置視角</button>
-    </div>
-    <div id="loading" class="absolute inset-0 flex items-center justify-center text-white text-sm hidden">載入中...</div>
+    <div id="loading" class="absolute inset-0 flex items-center justify-center text-white text-sm hidden bg-slate-900/80">處理照片中...</div>
   </div>
 
   <aside class="sidebar">
-    <div class="space-y-4">
-      <header class="flex justify-between items-center">
-        <h1 class="font-bold text-indigo-900 text-sm">水質比色分析儀</h1>
-        <button id="btnClearAll" class="text-[10px] text-slate-400">全部清空</button>
+    <div class="space-y-5">
+      <header class="flex justify-between items-center border-b pb-2">
+        <h1 class="font-bold text-indigo-900">水質比色數據分析</h1>
+        <button id="btnClearAll" class="text-[10px] text-rose-400 font-bold uppercase tracking-wider">重置全部</button>
       </header>
 
       <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
-        <label class="block text-xs font-bold text-indigo-900 mb-1 tracking-wider">1. 選取照片或拍攝</label>
+        <label class="block text-xs font-bold text-indigo-900 mb-2">步驟 1. 選取或拍攝照片</label>
         <input id="fileInput" type="file" accept="image/*" class="w-full text-xs" />
       </div>
 
       <div class="flex gap-2">
-        <button id="modeStandard" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all">標標準色</button>
-        <button id="modeSample" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all">標水樣色</button>
+        <button id="modeStandard" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all border-slate-200">標標準色</button>
+        <button id="modeSample" class="flex-1 py-3 border-2 rounded-xl text-xs font-bold bg-white transition-all border-slate-200">標水樣色</button>
       </div>
 
       <div id="standardsList" class="space-y-2">
-        <p class="text-[10px] text-slate-300 text-center py-2">尚未標示色塊</p>
+        <p class="text-[10px] text-slate-300 text-center py-2 italic">尚未選取檔案</p>
       </div>
 
       <div id="sampleBox" class="p-2 bg-slate-50 rounded-lg text-center text-[10px] text-slate-400">尚未選取水樣</div>
 
-      <div class="pt-2">
-        <button id="btnAnalyze" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg active:scale-95 transition-all">執行分析</button>
-        <div id="result" class="mt-2 p-3 bg-slate-900 text-green-400 text-center font-mono text-3xl rounded-xl">--</div>
+      <div class="space-y-3 pt-2">
+        <button id="btnAnalyze" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg">執行分析計算</button>
+        <div id="result" class="p-4 bg-slate-900 text-green-400 text-center font-mono text-4xl rounded-xl border-2 border-slate-700">--</div>
       </div>
-      
-      <button id="btnCancel" class="w-full py-2 text-rose-500 text-[10px] font-bold">刪除所選區域</button>
+
+      <div class="pt-4 border-t border-slate-100">
+        <label class="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">照片視角操作</label>
+        <div class="flex items-center gap-2">
+          <button id="btnZoomIn" class="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold shadow-sm active:bg-slate-200">＋ 放大</button>
+          <button id="btnZoomOut" class="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold shadow-sm active:bg-slate-200">－ 縮小</button>
+          <button id="btnZoomReset" class="px-4 py-3 bg-slate-700 text-white rounded-xl text-xs font-bold shadow-sm">重置視角</button>
+        </div>
+        <button id="btnCancel" class="w-full mt-3 py-2 text-rose-500 text-[10px] font-bold border border-rose-100 rounded-lg">刪除目前所選區域</button>
+      </div>
     </div>
   </aside>
 
@@ -110,11 +111,7 @@ let state = {
     regions: [], 
     current: null, 
     selectedId: null,
-    viewScale: 1.0,
-    posX: 0,
-    posY: 0,
-    isDragging: false,
-    dragStart: { x: 0, y: 0 }
+    viewScale: 1.0, posX: 0, posY: 0, isDragging: false, dragStart: { x: 0, y: 0 }
 };
 
 const dom = {
@@ -131,67 +128,52 @@ const dom = {
     loading: document.getElementById('loading')
 };
 
-// --- 重點修正：更穩定的圖片載入邏輯 ---
-dom.fileInput.onchange = (e) => {
+// 圖片匯入
+dom.fileInput.addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
-
     dom.loading.classList.remove('hidden');
     state.imgLoaded = false;
-    dom.container.style.display = 'none';
-
-    // 使用 URL.createObjectURL 優於 FileReader (對大圖支援度較高)
-    const blobUrl = URL.createObjectURL(file);
-    
-    // 建立一個新的圖片物件確保重置狀態
-    const tempImg = new Image();
-    tempImg.onload = function() {
-        let tw = tempImg.naturalWidth, th = tempImg.naturalHeight;
-        // 嚴格限制解析度，避免 iPad 畫布崩潰
-        const MAX = 2200; 
-        if (tw > MAX || th > MAX) {
-            const r = Math.min(MAX/tw, MAX/th);
-            tw = Math.floor(tw*r); th = Math.floor(th*r);
-        }
-
-        dom.canvas.width = dom.overlay.width = tw;
-        dom.canvas.height = dom.overlay.height = th;
-
-        requestAnimationFrame(() => {
-            dom.ctx.clearRect(0, 0, tw, th);
-            dom.ctx.drawImage(tempImg, 0, 0, tw, th);
-            state.img = tempImg;
-            state.imgLoaded = true;
-            state.regions = [];
-            dom.container.style.display = 'block';
-            dom.loading.classList.add('hidden');
-            resetView();
-            refreshUI();
-            renderOverlay();
-            // 釋放記憶體
-            URL.revokeObjectURL(blobUrl);
-        });
+    dom.container.style.visibility = 'hidden';
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const tempImg = new Image();
+        tempImg.onload = function() {
+            let tw = tempImg.width, th = tempImg.height;
+            const MAX = 2200;
+            if (tw > MAX || th > MAX) {
+                const r = Math.min(MAX/tw, MAX/th);
+                tw = Math.floor(tw*r); th = Math.floor(th*r);
+            }
+            dom.canvas.width = tw; dom.canvas.height = th;
+            dom.overlay.width = tw; dom.overlay.height = th;
+            setTimeout(() => {
+                dom.ctx.fillStyle = "#FFFFFF";
+                dom.ctx.fillRect(0, 0, tw, th);
+                dom.ctx.drawImage(tempImg, 0, 0, tw, th);
+                state.img = tempImg;
+                state.imgLoaded = true;
+                state.regions = [];
+                dom.container.style.visibility = 'visible';
+                dom.loading.classList.add('hidden');
+                resetView();
+                refreshUI();
+                renderOverlay();
+            }, 100);
+        };
+        tempImg.src = event.target.result;
     };
-    tempImg.onerror = () => {
-        alert("圖片解析失敗，請嘗試使用較小的照片。");
-        dom.loading.classList.add('hidden');
-    };
-    tempImg.src = blobUrl;
-};
+    reader.readAsDataURL(file);
+});
 
-// --- 視角變換 ---
-function updateTransform() {
-    dom.container.style.transform = `translate(${state.posX}px, ${state.posY}px) scale(${state.viewScale})`;
-}
-function resetView() {
-    state.viewScale = 1.0; state.posX = 0; state.posY = 0;
-    updateTransform();
-}
-document.getElementById('btnZoomIn').onclick = () => { state.viewScale *= 1.25; updateTransform(); };
-document.getElementById('btnZoomOut').onclick = () => { state.viewScale /= 1.25; updateTransform(); };
+// 視角變換
+function updateTransform() { dom.container.style.transform = `translate(${state.posX}px, ${state.posY}px) scale(${state.viewScale})`; }
+function resetView() { state.viewScale = 1.0; state.posX = 0; state.posY = 0; updateTransform(); }
+document.getElementById('btnZoomIn').onclick = () => { state.viewScale *= 1.35; updateTransform(); };
+document.getElementById('btnZoomOut').onclick = () => { state.viewScale /= 1.35; updateTransform(); };
 document.getElementById('btnZoomReset').onclick = resetView;
 
-// --- 座標計算 ---
+// 座標捕捉
 function getCanvasPos(e) {
     const rect = dom.viewport.getBoundingClientRect();
     const cx = (e.touches && e.touches.length) ? e.touches[0].clientX : e.clientX;
@@ -203,18 +185,12 @@ function getCanvasPos(e) {
 }
 
 function handleStart(e) {
-    if (e.target.tagName === 'INPUT' || !state.imgLoaded) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || !state.imgLoaded) return;
     const pos = getCanvasPos(e);
-    
     const hit = state.regions.find(r => pos.x >= r.x && pos.x <= r.x+r.w && pos.y >= r.y && pos.y <= r.y+r.h);
-    if (hit) {
-        state.selectedId = hit.id;
-        refreshUI(); renderOverlay(); return;
-    }
-
-    if (state.mode) {
-        state.current = { x0: pos.x, y0: pos.y, x: pos.x, y: pos.y };
-    } else {
+    if (hit) { state.selectedId = hit.id; refreshUI(); renderOverlay(); return; }
+    if (state.mode) { state.current = { x0: pos.x, y0: pos.y, x: pos.x, y: pos.y }; } 
+    else {
         state.isDragging = true;
         const cx = (e.touches && e.touches.length) ? e.touches[0].clientX : e.clientX;
         const cy = (e.touches && e.touches.length) ? e.touches[0].clientY : e.clientY;
@@ -225,19 +201,10 @@ function handleStart(e) {
 function handleMove(e) {
     if (!state.current && !state.isDragging) return;
     if (e.cancelable) e.preventDefault();
-    
     const cx = (e.touches && e.touches.length) ? e.touches[0].clientX : e.clientX;
     const cy = (e.touches && e.touches.length) ? e.touches[0].clientY : e.clientY;
-
-    if (state.current) {
-        const pos = getCanvasPos(e);
-        state.current.x = pos.x; state.current.y = pos.y;
-        renderOverlay();
-    } else if (state.isDragging) {
-        state.posX = cx - state.dragStart.x;
-        state.posY = cy - state.dragStart.y;
-        updateTransform();
-    }
+    if (state.current) { const pos = getCanvasPos(e); state.current.x = pos.x; state.current.y = pos.y; renderOverlay(); } 
+    else if (state.isDragging) { state.posX = cx - state.dragStart.x; state.posY = cy - state.dragStart.y; updateTransform(); }
 }
 
 function handleEnd() {
@@ -246,14 +213,10 @@ function handleEnd() {
         const r = { id: Date.now(), x: Math.min(x0,x), y: Math.min(y0,y), w: Math.abs(x-x0), h: Math.abs(y-y0), type: state.mode, conc: null };
         if (r.w > 5) {
             if (r.type === 'sample') state.regions = state.regions.filter(i => i.type !== 'sample');
-            r.avg = getAvgColor(r);
-            state.regions.push(r);
-            state.selectedId = r.id;
+            r.avg = getAvgColor(r); state.regions.push(r); state.selectedId = r.id;
         }
     }
-    state.current = null;
-    state.isDragging = false;
-    refreshUI(); renderOverlay();
+    state.current = null; state.isDragging = false; refreshUI(); renderOverlay();
 }
 
 dom.viewport.addEventListener('touchstart', handleStart, {passive: false});
@@ -293,12 +256,12 @@ function renderOverlay() {
 
 function refreshUI() {
     const stds = state.regions.filter(r => r.type === 'standard');
-    dom.standardsList.innerHTML = stds.length ? '' : '<p class="text-[10px] text-slate-300 text-center py-2 italic">尚未標示色塊</p>';
+    dom.standardsList.innerHTML = stds.length ? '' : '<p class="text-[10px] text-slate-300 text-center py-2 italic">照片就緒後請框選色塊</p>';
     stds.forEach(r => {
         const item = document.createElement('div');
         item.className = `flex items-center gap-2 p-2 rounded-xl border ${r.id === state.selectedId ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-slate-100 bg-white'}`;
         item.innerHTML = `<div class="w-8 h-8 rounded-lg border shadow-inner" style="background:rgb(${r.avg.r},${r.avg.g},${r.avg.b})"></div>
-            <div class="flex-1"><input type="number" inputmode="decimal" class="std-input" placeholder="值" value="${r.conc !== null ? r.conc : ''}"></div>
+            <div class="flex-1"><input type="number" inputmode="decimal" class="std-input" placeholder="濃度值" value="${r.conc !== null ? r.conc : ''}"></div>
             <button class="text-rose-400 font-bold px-1 text-sm">✕</button>`;
         const input = item.querySelector('input');
         input.ontouchstart = (e) => e.stopPropagation();
@@ -308,32 +271,30 @@ function refreshUI() {
         dom.standardsList.appendChild(item);
     });
     const samp = state.regions.find(r => r.type === 'sample');
-    dom.sampleBox.innerHTML = samp ? `<div class="flex items-center gap-2 justify-center"><div class="w-5 h-5 rounded border" style="background:rgb(${samp.avg.r},${samp.avg.g},${samp.avg.b})"></div><b class="text-emerald-600 text-xs uppercase">Sample OK</b></div>` : '尚未選取水樣';
+    dom.sampleBox.innerHTML = samp ? `<div class="flex items-center gap-2 justify-center"><div class="w-5 h-5 rounded border" style="background:rgb(${samp.avg.r},${samp.avg.g},${samp.avg.b})"></div><b class="text-emerald-600 text-xs">水樣標示完成</b></div>` : '尚未選取水樣色塊';
 }
 
-// 按鈕
 document.getElementById('modeStandard').onclick = () => { state.mode = (state.mode === 'standard') ? null : 'standard'; updateModeUI(); };
 document.getElementById('modeSample').onclick = () => { state.mode = (state.mode === 'sample') ? null : 'sample'; updateModeUI(); };
 function updateModeUI() {
-    document.getElementById('modeStandard').className = `flex-1 py-3 border-2 rounded-xl text-xs font-bold transition-all ${state.mode === 'standard' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`;
-    document.getElementById('modeSample').className = `flex-1 py-3 border-2 rounded-xl text-xs font-bold transition-all ${state.mode === 'sample' ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`;
+    document.getElementById('modeStandard').className = `flex-1 py-3 border-2 rounded-xl text-xs font-bold transition-all ${state.mode === 'standard' ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600'}`;
+    document.getElementById('modeSample').className = `flex-1 py-3 border-2 rounded-xl text-xs font-bold transition-all ${state.mode === 'sample' ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600'}`;
 }
-document.getElementById('btnCancel').onclick = () => { if(state.selectedId){ state.regions = state.regions.filter(r => r.id !== state.selectedId); state.selectedId = null; refreshUI(); renderOverlay(); } };
-
 document.getElementById('btnAnalyze').onclick = () => {
     const stds = state.regions.filter(r => r.type === 'standard' && r.conc !== null).sort((a,b) => a.conc - b.conc);
     const samp = state.regions.find(r => r.type === 'sample');
-    if (stds.length < 2 || !samp) return alert('需標記 2 個標準值與 1 個水樣');
+    if (stds.length < 2 || !samp) return alert('需標記 2 個標準濃度與 1 個水樣區');
     const sL = rgbToLab(samp.avg.r, samp.avg.g, samp.avg.b), sLs = stds.map(s => ({ c: s.conc, l: rgbToLab(s.avg.r, s.avg.g, s.avg.b) }));
     let res = -1;
     for (let i=0; i<sLs.length-1; i++) {
         const s1=sLs[i], s2=sLs[i+1], d1=Math.sqrt(Math.pow(sL.L-s1.l.L,2)+Math.pow(sL.a-s1.l.a,2)+Math.pow(sL.b-s1.l.b,2)), d2=Math.sqrt(Math.pow(sL.L-s2.l.L,2)+Math.pow(sL.a-s2.l.a,2)+Math.pow(sL.b-s2.l.b,2)), d12=Math.sqrt(Math.pow(s1.l.L-s2.l.L,2)+Math.pow(s1.l.a-s2.l.a,2)+Math.pow(s1.l.b-s2.l.b,2));
         if (d1+d2 <= d12*1.2) { res = s1.c + (d1/(d1+d2))*(s2.c-s1.c); break; }
     }
-    if (res===-1) res = sLs.map(s => ({c:s.c, d:Math.sqrt(Math.pow(sL.L-s.l.l.L,2)+Math.pow(sL.a-s.l.a,2)+Math.pow(sL.b-s.l.b,2))})).sort((a,b)=>a.d-b.d)[0].c;
+    if (res===-1) res = sLs.map(s => ({c:s.c, d:Math.sqrt(Math.pow(sL.L-s.l.L,2)+Math.pow(sL.a-s.l.a,2)+Math.pow(sL.b-s.l.b,2))})).sort((a,b)=>a.d-b.d)[0].c;
     dom.result.innerText = res.toFixed(3);
 };
-document.getElementById('btnClearAll').onclick = () => { if(confirm('重設所有數據？')){ state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; resetView(); } };
+document.getElementById('btnCancel').onclick = () => { if(state.selectedId){ state.regions = state.regions.filter(r => r.id !== state.selectedId); state.selectedId = null; refreshUI(); renderOverlay(); } };
+document.getElementById('btnClearAll').onclick = () => { if(confirm('確定要清空目前所有數據嗎？')){ state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; resetView(); } };
 </script>
 </body>
 </html>
