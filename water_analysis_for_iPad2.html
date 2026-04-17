@@ -3,109 +3,113 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>水質分析儀：視角控制強化版</title>
+  <title>河川水質分析儀：佈局修正版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { touch-action: auto; overflow-x: hidden; background-color: #f1f5f9; }
-    
-    /* 核心修正：畫布外框容器，負責滾動與溢出顯示 */
-    .view-viewport { 
-      height: 55vh; 
-      overflow: auto; /* 允許自動出現捲軸 */
+    /* 核心修正：防止網頁被大圖撐開 */
+    html, body { 
+        height: 100%; 
+        overflow: hidden; /* 禁止全網頁捲動，改用內部捲動 */
+        background-color: #f1f5f9;
+    }
+
+    /* 限制照片顯示視窗的大小 */
+    .viewport-container { 
+      height: 45vh; /* 佔據螢幕高度的 45% */
+      width: 100%;
+      overflow: auto; /* 超出時內部捲動 */
       background-color: #1e293b;
       position: relative;
-      border-radius: 12px;
       border: 2px solid #334155;
-      /* 隱藏捲軸以便用方向鍵控制，若需要手動捲動可改為 scroll */
-    }
-    
-    #canvasContainer { 
-      transform-origin: 0 0; /* 從左上角縮放 */
-      transition: transform 0.1s ease-out;
-    }
-
-    canvas { display: block; }
-    
-    .sidebar { width: 100%; height: 40vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-    @media (min-width: 768px) { 
-      .sidebar { width: 400px; height: auto; } 
-      .view-viewport { height: 70vh; }
-    }
-
-    .standard-input {
-      font-size: 16px !important;
-      border: 2px solid #cbd5e1 !important;
-      padding: 8px !important;
-      width: 100%;
       border-radius: 8px;
     }
 
-    /* 控制按鈕樣式 */
-    .ctrl-btn {
-      @apply bg-slate-700 text-white p-2 rounded hover:bg-slate-600 active:bg-slate-800 text-sm flex items-center justify-center;
-      min-width: 40px;
+    /* 畫布容器，縮放時以此為基準 */
+    #canvasContainer { 
+      transform-origin: 0 0;
+      transition: transform 0.1s ease;
+      display: inline-block;
+    }
+
+    /* 確保 Canvas 不會強行撐開父層，而是服從 JS 設定的尺寸 */
+    canvas { display: block; }
+
+    /* 控制列與側邊欄 */
+    .controls-panel { height: 12vh; overflow: hidden; }
+    .sidebar-area { height: 35vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+    /* 桌機版佈局調整 */
+    @media (min-width: 768px) {
+        body { overflow: auto; height: auto; }
+        .flex-main { flex-direction: row; height: 85vh; }
+        .viewport-container { height: 70vh; }
+        .sidebar-area { height: 70vh; width: 400px; }
+    }
+
+    .std-input {
+      font-size: 16px !important;
+      border: 1px solid #cbd5e1;
+      padding: 6px 10px;
+      border-radius: 6px;
+      width: 100%;
     }
   </style>
 </head>
-<body class="min-h-screen">
-  <div class="max-w-7xl mx-auto p-2">
-    <header class="flex justify-between items-center p-3 mb-2 bg-white rounded-xl shadow-sm border">
-        <h1 class="font-bold text-indigo-900">水質比色分析 (視角強化版)</h1>
-        <button id="btnClearAll" class="text-xs px-3 py-1 bg-slate-100 rounded">重設數據</button>
+<body class="p-2">
+  <div class="max-w-7xl mx-auto h-full flex flex-col">
+    <header class="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border mb-2">
+        <h1 class="font-bold text-indigo-900 text-sm md:text-xl">水質分析儀 (佈局修正)</h1>
+        <button id="btnClearAll" class="text-[10px] px-2 py-1 bg-slate-100 rounded">重設</button>
     </header>
 
-    <div class="flex flex-col md:flex-row bg-white rounded-2xl shadow-xl overflow-hidden border">
-        <div class="flex-1 p-2 bg-slate-200">
-          <div id="viewport" class="view-viewport mb-2">
+    <div class="flex flex-col flex-main gap-2 overflow-hidden">
+        <div class="flex-1 flex flex-col bg-white rounded-xl shadow p-2 overflow-hidden">
+          <div id="viewport" class="viewport-container">
             <div id="canvasContainer">
               <canvas id="canvas"></canvas>
               <canvas id="overlay" class="absolute left-0 top-0 pointer-events-none"></canvas>
             </div>
           </div>
           
-          <div class="bg-white p-3 rounded-xl shadow-inner flex flex-wrap items-center gap-4">
+          <div class="controls-panel mt-2 grid grid-cols-2 gap-2 items-center border-t pt-2">
             <div class="flex gap-1 items-center">
-              <span class="text-xs font-bold text-slate-400 mr-2">縮放:</span>
-              <button id="btnZoomIn" class="ctrl-btn">＋</button>
-              <button id="btnZoomOut" class="ctrl-btn">－</button>
-              <button id="btnZoomReset" class="px-3 py-2 bg-slate-200 rounded text-xs font-bold">重置</button>
+              <button id="btnZoomIn" class="bg-slate-700 text-white w-8 h-8 rounded">＋</button>
+              <button id="btnZoomOut" class="bg-slate-700 text-white w-8 h-8 rounded">－</button>
+              <button id="btnZoomReset" class="text-[10px] px-2 py-1 bg-slate-200 rounded">重置縮放</button>
             </div>
-            
-            <div class="flex gap-1 items-center ml-auto">
-              <span class="text-xs font-bold text-slate-400 mr-2">移動照片:</span>
-              <div class="grid grid-cols-3 gap-1">
-                <div translate="no"></div>
-                <button id="btnUp" class="ctrl-btn">↑</button>
-                <div translate="no"></div>
-                <button id="btnLeft" class="ctrl-btn">←</button>
-                <button id="btnDown" class="ctrl-btn">↓</button>
-                <button id="btnRight" class="ctrl-btn text-xs">→</button>
-              </div>
+            <div class="flex justify-end gap-1">
+              <button id="btnUp" class="bg-slate-500 text-white w-7 h-7 rounded text-xs">↑</button>
+              <button id="btnDown" class="bg-slate-500 text-white w-7 h-7 rounded text-xs">↓</button>
+              <button id="btnLeft" class="bg-slate-500 text-white w-7 h-7 rounded text-xs">←</button>
+              <button id="btnRight" class="bg-slate-500 text-white w-7 h-7 rounded text-xs">→</button>
             </div>
-          </div>
-
-          <div class="mt-2 flex gap-2">
-            <button id="btnCancel" class="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold text-sm">刪除選取</button>
           </div>
         </div>
 
-        <aside class="sidebar p-5">
-          <div class="space-y-5">
-            <div class="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-              <label class="block text-xs font-bold text-indigo-900 mb-2">1. 匯入照片</label>
+        <aside class="sidebar-area bg-white rounded-xl shadow p-4 border">
+          <div class="space-y-4">
+            <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+              <label class="block text-xs font-bold text-indigo-900 mb-1">1. 匯入照片</label>
               <input id="fileInput" type="file" accept="image/*" class="w-full text-xs" />
             </div>
 
             <div class="flex gap-2">
-              <button id="modeStandard" class="flex-1 py-3 border-2 rounded-xl text-sm font-bold">標準色模式</button>
-              <button id="modeSample" class="flex-1 py-3 border-2 rounded-xl text-sm font-bold">水樣模式</button>
+              <button id="modeStandard" class="flex-1 py-2 border-2 rounded-lg text-xs font-bold">標準色</button>
+              <button id="modeSample" class="flex-1 py-2 border-2 rounded-lg text-xs font-bold">水樣色</button>
             </div>
 
-            <div id="standardsList" class="space-y-3"></div>
-            <div id="sampleBox" class="p-3 bg-slate-50 border rounded-xl text-xs text-slate-400 text-center">尚未選取水樣</div>
+            <div id="standardsList" class="space-y-2">
+                <p class="text-[10px] text-slate-400 italic text-center">待框選標準色...</p>
+            </div>
 
-            <button id="btnAnalyze" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl">執行分析</button>
-            <div id="result" class="p-4 bg-slate-900 text-green-400 text-center font-mono text-3xl rounded-xl">--</div>
+            <div id="sampleBox" class="p-2 bg-slate-50 rounded border text-center text-[10px]">尚未選取水樣</div>
+
+            <div class="pt-2 border-t">
+              <button id="btnAnalyze" class="w-full py-3 bg-indigo-600 text-white rounded-lg font-bold shadow-md">計算濃度</button>
+              <div id="result" class="mt-2 p-3 bg-slate-900 text-green-400 text-center font-mono text-2xl rounded-lg">--</div>
+            </div>
+            
+            <button id="btnCancel" class="w-full py-2 bg-rose-500 text-white rounded text-xs">刪除當前選取</button>
           </div>
         </aside>
     </div>
@@ -119,8 +123,7 @@ let state = {
     regions: [], 
     current: null, 
     selectedId: null,
-    viewScale: 1.0, // 視窗縮放倍率
-    imgBaseScale: 1.0 // 圖片原始與顯示比例
+    viewScale: 1.0
 };
 
 const dom = {
@@ -136,7 +139,6 @@ const dom = {
     result: document.getElementById('result')
 };
 
-// 圖片匯入
 dom.fileInput.onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -144,9 +146,8 @@ dom.fileInput.onchange = (e) => {
     reader.onload = (event) => {
         state.img = new Image();
         state.img.onload = function() {
-            let tw = state.img.naturalWidth;
-            let th = state.img.naturalHeight;
-            const MAX = 2500;
+            let tw = state.img.naturalWidth, th = state.img.naturalHeight;
+            const MAX = 2000;
             if (tw > MAX || th > MAX) {
                 const r = Math.min(MAX/tw, MAX/th);
                 tw = Math.floor(tw*r); th = Math.floor(th*r);
@@ -154,11 +155,10 @@ dom.fileInput.onchange = (e) => {
             dom.canvas.width = dom.overlay.width = tw;
             dom.canvas.height = dom.overlay.height = th;
             dom.ctx.fillStyle = "#FFFFFF";
-            dom.ctx.fillRect(0, 0, tw, th);
+            dom.ctx.fillRect(0,0,tw,th);
             dom.ctx.drawImage(state.img, 0, 0, tw, th);
             state.imgLoaded = true;
             state.regions = [];
-            state.selectedId = null;
             resetView();
             refreshUI();
             renderOverlay();
@@ -168,41 +168,26 @@ dom.fileInput.onchange = (e) => {
     reader.readAsDataURL(file);
 };
 
-// --- 視角縮放與移動邏輯 ---
-function applyView() {
-    dom.container.style.transform = `scale(${state.viewScale})`;
-}
-
-function resetView() {
-    state.viewScale = 1.0;
-    applyView();
-    dom.viewport.scrollLeft = 0;
-    dom.viewport.scrollTop = 0;
-}
-
+// --- 視角與縮放 ---
+function applyView() { dom.container.style.transform = `scale(${state.viewScale})`; }
+function resetView() { state.viewScale = 1.0; applyView(); dom.viewport.scrollTop = 0; dom.viewport.scrollLeft = 0; }
 document.getElementById('btnZoomIn').onclick = () => { state.viewScale += 0.2; applyView(); };
-document.getElementById('btnZoomOut').onclick = () => { if(state.viewScale > 0.4) state.viewScale -= 0.2; applyView(); };
+document.getElementById('btnZoomOut').onclick = () => { if(state.viewScale > 0.4) { state.viewScale -= 0.2; applyView(); } };
 document.getElementById('btnZoomReset').onclick = resetView;
+const moveS = 80;
+document.getElementById('btnUp').onclick = () => dom.viewport.scrollTop -= moveS;
+document.getElementById('btnDown').onclick = () => dom.viewport.scrollTop += moveS;
+document.getElementById('btnLeft').onclick = () => dom.viewport.scrollLeft -= moveS;
+document.getElementById('btnRight').onclick = () => dom.viewport.scrollLeft += moveS;
 
-const scrollStep = 100;
-document.getElementById('btnUp').onclick = () => dom.viewport.scrollTop -= scrollStep;
-document.getElementById('btnDown').onclick = () => dom.viewport.scrollTop += scrollStep;
-document.getElementById('btnLeft').onclick = () => dom.viewport.scrollLeft -= scrollStep;
-document.getElementById('btnRight').onclick = () => dom.viewport.scrollLeft += scrollStep;
-
-// --- 座標計算修正 ---
+// --- 座標計算 ---
 function getPos(e) {
     const rect = dom.canvas.getBoundingClientRect();
-    const clientX = (e.touches && e.touches.length) ? e.touches[0].clientX : e.clientX;
-    const clientY = (e.touches && e.touches.length) ? e.touches[0].clientY : e.clientY;
-    
-    // 重要：座標必須除以當前的顯示寬度比例，還原回 Canvas 的原始像素座標
-    const displayedWidth = rect.width;
-    const displayedHeight = rect.height;
-    
+    const cx = (e.touches && e.touches.length) ? e.touches[0].clientX : e.clientX;
+    const cy = (e.touches && e.touches.length) ? e.touches[0].clientY : e.clientY;
     return {
-        x: (clientX - rect.left) * (dom.canvas.width / displayedWidth),
-        y: (clientY - rect.top) * (dom.canvas.height / displayedHeight)
+        x: (cx - rect.left) * (dom.canvas.width / rect.width),
+        y: (cy - rect.top) * (dom.canvas.height / rect.height)
     };
 }
 
@@ -211,10 +196,7 @@ function handleStart(e) {
     if (!state.imgLoaded) return;
     const pos = getPos(e);
     const hit = state.regions.find(r => pos.x >= r.x && pos.x <= r.x+r.w && pos.y >= r.y && pos.y <= r.y+r.h);
-    if (hit) {
-        state.selectedId = hit.id;
-        refreshUI(); renderOverlay(); return;
-    }
+    if (hit) { state.selectedId = hit.id; refreshUI(); renderOverlay(); return; }
     if (!state.mode) return;
     state.current = { x0: pos.x, y0: pos.y, x: pos.x, y: pos.y };
 }
@@ -223,27 +205,25 @@ function handleMove(e) {
     if (!state.current) return;
     if (e.cancelable) e.preventDefault();
     const pos = getPos(e);
-    state.current.x = pos.x;
-    state.current.y = pos.y;
+    state.current.x = pos.x; state.current.y = pos.y;
     renderOverlay();
 }
 
 function handleEnd() {
     if (!state.current) return;
     const { x0, y0, x, y } = state.current;
-    const r = { id: Date.now(), x: Math.min(x0,x), y: Math.min(y0,y), w: Math.abs(x-x0), h: Math.abs(y-y0), type: state.mode, conc: null };
-    if (r.w > 5 && r.h > 5) {
+    const r = { id: Date.now(), x: Math.min(x0,x), y: Math.min(y0,y), w: Math.max(5, Math.abs(x-x0)), h: Math.max(5, Math.abs(y-y0)), type: state.mode, conc: null };
+    if (r.w > 5) {
         if (r.type === 'sample') state.regions = state.regions.filter(i => i.type !== 'sample');
         r.avg = getAvgColor(r);
         state.regions.push(r);
         state.selectedId = r.id;
     }
-    state.current = null;
-    refreshUI(); renderOverlay();
+    state.current = null; refreshUI(); renderOverlay();
 }
 
 dom.container.addEventListener('touchstart', (e) => { handleStart(e); if(state.mode) e.preventDefault(); }, {passive: false});
-window.addEventListener('touchmove', handleMove, {passive: false});
+window.addEventListener('touchmove', (e) => { if(state.current) handleMove(e); }, {passive: false});
 window.addEventListener('touchend', handleEnd);
 dom.container.addEventListener('mousedown', handleStart);
 window.addEventListener('mousemove', (e) => { if(state.current) handleMove(e); });
@@ -279,49 +259,40 @@ function renderOverlay() {
 
 function refreshUI() {
     const stds = state.regions.filter(r => r.type === 'standard');
-    dom.standardsList.innerHTML = stds.length ? '' : '<p class="text-xs text-slate-400 italic text-center py-4 border-2 border-dashed rounded-xl">請開始在照片上框選...</p>';
+    dom.standardsList.innerHTML = stds.length ? '' : '<p class="text-[10px] text-slate-400 italic text-center">待框選...</p>';
     stds.forEach(r => {
         const item = document.createElement('div');
-        item.className = `flex items-center gap-3 p-3 rounded-xl border-2 ${r.id === state.selectedId ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 bg-white'}`;
-        item.innerHTML = `
-            <div class="w-10 h-10 rounded-lg border" style="background:rgb(${r.avg.r},${r.avg.g},${r.avg.b})"></div>
-            <div class="flex-1"><input type="number" step="any" inputmode="decimal" class="standard-input" placeholder="數值" value="${r.conc !== null ? r.conc : ''}"></div>
-            <button class="w-8 h-8 text-rose-500 font-bold">✕</button>
-        `;
+        item.className = `flex items-center gap-2 p-2 rounded border ${r.id === state.selectedId ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 bg-white'}`;
+        item.innerHTML = `<div class="w-6 h-6 rounded border" style="background:rgb(${r.avg.r},${r.avg.g},${r.avg.b})"></div>
+            <input type="number" step="any" inputmode="decimal" class="std-input" placeholder="值" value="${r.conc !== null ? r.conc : ''}">
+            <button class="text-rose-500 text-xs px-1">✕</button>`;
         const input = item.querySelector('input');
-        const stop = (e) => e.stopPropagation();
-        input.addEventListener('touchstart', stop); input.addEventListener('mousedown', stop);
+        input.addEventListener('touchstart', (e)=>e.stopPropagation());
         input.oninput = (e) => { r.conc = e.target.value === '' ? null : parseFloat(e.target.value); };
         item.querySelector('button').onclick = (e) => { e.stopPropagation(); state.regions = state.regions.filter(rg => rg.id !== r.id); refreshUI(); renderOverlay(); };
         item.onclick = () => { state.selectedId = r.id; renderOverlay(); refreshUI(); };
         dom.standardsList.appendChild(item);
     });
     const samp = state.regions.find(r => r.type === 'sample');
-    dom.sampleBox.innerHTML = samp ? `<div class="flex items-center gap-2 justify-center"><div class="w-6 h-6 rounded" style="background:rgb(${samp.avg.r},${samp.avg.g},${samp.avg.b})"></div><b class="text-emerald-600 text-sm">水樣 OK</b></div>` : '尚未選取水樣';
+    dom.sampleBox.innerHTML = samp ? `<div class="flex items-center gap-2 justify-center"><div class="w-5 h-5 rounded" style="background:rgb(${samp.avg.r},${samp.avg.g},${samp.avg.b})"></div><b class="text-emerald-600 text-[10px]">水樣 OK</b></div>` : '尚未選取水樣';
 }
 
-document.getElementById('modeStandard').onclick = () => { state.mode='standard'; document.getElementById('modeStandard').className='flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold'; document.getElementById('modeSample').className='flex-1 py-3 border-2 border-slate-200 bg-white text-slate-500 rounded-xl text-sm'; };
-document.getElementById('modeSample').onclick = () => { state.mode='sample'; document.getElementById('modeSample').className='flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold'; document.getElementById('modeStandard').className='flex-1 py-3 border-2 border-slate-200 bg-white text-slate-500 rounded-xl text-sm'; };
+document.getElementById('modeStandard').onclick = () => { state.mode='standard'; document.getElementById('modeStandard').className='flex-1 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold'; document.getElementById('modeSample').className='flex-1 py-2 border-2 text-slate-400 rounded-lg text-xs'; };
+document.getElementById('modeSample').onclick = () => { state.mode='sample'; document.getElementById('modeSample').className='flex-1 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold'; document.getElementById('modeStandard').className='flex-1 py-2 border-2 text-slate-400 rounded-lg text-xs'; };
 document.getElementById('btnCancel').onclick = () => { if(state.selectedId){ state.regions = state.regions.filter(r => r.id !== state.selectedId); state.selectedId = null; refreshUI(); renderOverlay(); } };
-
 document.getElementById('btnAnalyze').onclick = () => {
     const stds = state.regions.filter(r => r.type === 'standard' && r.conc !== null).sort((a,b) => a.conc - b.conc);
     const samp = state.regions.find(r => r.type === 'sample');
-    if (stds.length < 2 || !samp) return alert('請輸入至少 2 個標準濃度與選取水樣');
-    const sL = rgbToLab(samp.avg.r, samp.avg.g, samp.avg.b);
-    const sLs = stds.map(s => ({ c: s.conc, l: rgbToLab(s.avg.r, s.avg.g, s.avg.b) }));
+    if (stds.length < 2 || !samp) return alert('需 2 個標準值 + 1 個水樣');
+    const sL = rgbToLab(samp.avg.r, samp.avg.g, samp.avg.b), sLs = stds.map(s => ({ c: s.conc, l: rgbToLab(s.avg.r, s.avg.g, s.avg.b) }));
     let res = -1;
     for (let i=0; i<sLs.length-1; i++) {
-        const s1=sLs[i], s2=sLs[i+1];
-        const d1=Math.sqrt(Math.pow(sL.L-s1.l.L,2)+Math.pow(sL.a-s1.l.a,2)+Math.pow(sL.b-s1.l.b,2));
-        const d2=Math.sqrt(Math.pow(sL.L-s2.l.L,2)+Math.pow(sL.a-s2.l.a,2)+Math.pow(sL.b-s2.l.b,2));
-        const d12=Math.sqrt(Math.pow(s1.l.L-s2.l.L,2)+Math.pow(s1.l.a-s2.l.a,2)+Math.pow(s1.l.b-s2.l.b,2));
+        const s1=sLs[i], s2=sLs[i+1], d1=Math.sqrt(Math.pow(sL.L-s1.l.L,2)+Math.pow(sL.a-s1.l.a,2)+Math.pow(sL.b-s1.l.b,2)), d2=Math.sqrt(Math.pow(sL.L-s2.l.L,2)+Math.pow(sL.a-s2.l.a,2)+Math.pow(sL.b-s2.l.b,2)), d12=Math.sqrt(Math.pow(s1.l.L-s2.l.L,2)+Math.pow(s1.l.a-s2.l.a,2)+Math.pow(s1.l.b-s2.l.b,2));
         if (d1+d2 <= d12*1.2) { res = s1.c + (d1/(d1+d2))*(s2.c-s1.c); break; }
     }
     if (res===-1) res = sLs.map(s => ({c:s.c, d:Math.sqrt(Math.pow(sL.L-s.l.L,2)+Math.pow(sL.a-s.l.a,2)+Math.pow(sL.b-s.l.b,2))})).sort((a,b)=>a.d-b.d)[0].c;
     dom.result.innerText = res.toFixed(3);
 };
-
 document.getElementById('btnClearAll').onclick = () => { if(confirm('重設？')){ state.regions=[]; state.selectedId=null; refreshUI(); renderOverlay(); dom.result.innerText='--'; resetView(); } };
 </script>
 </body>
