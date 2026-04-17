@@ -3,102 +3,106 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>水質分析儀：觸控優化版</title>
+  <title>河川分析儀：iPad 觸控終極版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { background-color: #f1f5f9; overflow-x: hidden; -webkit-user-select: none; }
+    body { background-color: #f8fafc; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
     
-    /* 照片視窗：固定為長方形比例 */
-    .viewport-container { 
-      aspect-ratio: 4 / 3; /* 強制長方形比例 */
+    /* 照片視窗：固定矩形比例 */
+    .viewport { 
+      flex: 1;
       width: 100%;
-      max-height: 55vh; 
-      overflow: hidden; /* 由 JS 處理移動 */
-      background-color: #1e293b;
+      min-height: 350px;
+      background-color: #0f172a;
       position: relative;
-      border: 2px solid #334155;
-      border-radius: 12px;
+      overflow: hidden; /* 內部手動位移 */
       touch-action: none;
+      border-radius: 12px;
     }
 
+    /* 畫布容器：負責縮放與移動 */
     #canvasContainer { 
       position: absolute;
+      left: 0; top: 0;
       transform-origin: 0 0;
       cursor: grab;
     }
 
-    /* 側邊欄捲動 */
-    .sidebar-area { height: auto; max-height: 40vh; overflow-y: auto; }
+    canvas { display: block; image-rendering: -webkit-optimize-contrast; }
+
+    /* 側邊控制欄 */
+    .sidebar { 
+      height: 40vh; 
+      background: white; 
+      border-top: 1px solid #e2e8f0;
+      overflow-y: auto;
+      padding: 16px;
+      -webkit-overflow-scrolling: touch;
+    }
+
     @media (min-width: 768px) {
-        .flex-main { flex-direction: row; }
-        .viewport-container { height: 65vh; aspect-ratio: auto; }
-        .sidebar-area { max-height: 75vh; width: 380px; }
+      body { flex-direction: row; }
+      .viewport { height: 100vh; border-radius: 0; }
+      .sidebar { width: 400px; height: 100vh; border-top: 0; border-left: 1px solid #e2e8f0; }
     }
 
     .std-input {
-      font-size: 16px !important;
-      border: 1px solid #cbd5e1;
+      font-size: 16px !important; /* 防止 iOS 縮放 */
+      border: 2px solid #e2e8f0;
       padding: 8px;
       border-radius: 8px;
       width: 100%;
+      background: white;
     }
+    .std-input:focus { border-color: #6366f1; outline: none; }
   </style>
 </head>
-<body class="p-2 md:p-4">
-  <div class="max-w-7xl mx-auto flex flex-col gap-3">
+<body>
+
+  <div id="viewport" class="viewport">
+    <div id="canvasContainer">
+      <canvas id="canvas"></canvas>
+      <canvas id="overlay" class="absolute left-0 top-0 pointer-events-none"></canvas>
+    </div>
     
-    <header class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border">
-        <h1 class="font-bold text-indigo-900 text-lg">水質數位分析儀</h1>
-        <button id="btnClearAll" class="text-xs px-3 py-1 bg-slate-100 rounded-lg hover:bg-red-50">重設</button>
-    </header>
-
-    <div class="flex flex-col flex-main gap-4">
-        <div class="flex-1 bg-white rounded-2xl shadow-lg p-3 border">
-          <div id="viewport" class="viewport-container shadow-inner">
-            <div id="canvasContainer">
-              <canvas id="canvas"></canvas>
-              <canvas id="overlay" class="absolute left-0 top-0 pointer-events-none"></canvas>
-            </div>
-          </div>
-          
-          <div class="mt-3 flex items-center justify-between px-2">
-            <div class="flex gap-2">
-              <button id="btnZoomIn" class="w-10 h-10 bg-slate-700 text-white rounded-xl font-bold">＋</button>
-              <button id="btnZoomOut" class="w-10 h-10 bg-slate-700 text-white rounded-xl font-bold">－</button>
-              <button id="btnZoomReset" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold">重置視角</button>
-            </div>
-            <div class="text-[10px] text-slate-400 italic">模式：非畫框時可直接拖動照片</div>
-          </div>
-        </div>
-
-        <aside class="sidebar-area bg-white rounded-2xl shadow-lg p-5 border">
-          <div class="space-y-5">
-            <div class="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-              <label class="block text-xs font-bold text-indigo-900 mb-2 uppercase tracking-widest">1. 匯入照片</label>
-              <input id="fileInput" type="file" accept="image/*" class="w-full text-xs" />
-            </div>
-
-            <div class="flex gap-2">
-              <button id="modeStandard" class="flex-1 py-3 border-2 rounded-xl text-sm font-bold transition-all">選標準色</button>
-              <button id="modeSample" class="flex-1 py-3 border-2 rounded-xl text-sm font-bold transition-all">選水樣</button>
-            </div>
-
-            <div id="standardsList" class="space-y-3">
-                <p class="text-xs text-slate-300 text-center py-4">請框選色塊並輸入數值</p>
-            </div>
-
-            <div id="sampleBox" class="p-3 bg-slate-50 rounded-xl border text-center text-xs text-slate-400 italic">尚未選取水樣</div>
-
-            <div class="pt-4 border-t">
-              <button id="btnAnalyze" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg">計算濃度</button>
-              <div id="result" class="mt-3 p-4 bg-slate-900 text-green-400 text-center font-mono text-3xl rounded-xl border-2 border-slate-700">--</div>
-            </div>
-            
-            <button id="btnCancel" class="w-full py-2 text-rose-500 font-bold text-xs uppercase tracking-widest">刪除當前選取</button>
-          </div>
-        </aside>
+    <div class="absolute bottom-4 left-4 flex gap-2">
+      <button id="btnZoomIn" class="w-12 h-12 bg-white/90 shadow-lg rounded-full font-bold text-xl">＋</button>
+      <button id="btnZoomOut" class="w-12 h-12 bg-white/90 shadow-lg rounded-full font-bold text-xl">－</button>
+      <button id="btnZoomReset" class="px-4 h-12 bg-indigo-600 text-white shadow-lg rounded-full text-xs font-bold">重置視角</button>
     </div>
   </div>
+
+  <aside class="sidebar">
+    <div class="space-y-4">
+      <header class="flex justify-between items-center mb-2">
+        <h1 class="font-bold text-indigo-900">水質數據分析</h1>
+        <button id="btnClearAll" class="text-xs text-red-500 underline">全部清空</button>
+      </header>
+
+      <div class="p-3 bg-slate-50 rounded-xl border">
+        <label class="block text-xs font-bold text-slate-500 mb-2 uppercase">1. 上傳照片</label>
+        <input id="fileInput" type="file" accept="image/*" class="w-full text-xs" />
+      </div>
+
+      <div class="flex gap-2">
+        <button id="modeStandard" class="flex-1 py-3 border-2 border-slate-200 rounded-xl text-sm font-bold bg-white transition-all">選取標準色</button>
+        <button id="modeSample" class="flex-1 py-3 border-2 border-slate-200 rounded-xl text-sm font-bold bg-white transition-all">選取受測水樣</button>
+      </div>
+
+      <div id="standardsList" class="space-y-3">
+        <p class="text-xs text-slate-400 text-center py-4 italic">尚未圈選色塊...</p>
+      </div>
+
+      <div id="sampleBox" class="p-3 bg-indigo-50 rounded-xl text-center text-xs text-indigo-400">尚未選取水樣</div>
+
+      <div class="pt-4">
+        <button id="btnAnalyze" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg active:scale-95 transition-all">計算濃度</button>
+        <div id="result" class="mt-3 p-4 bg-slate-900 text-green-400 text-center font-mono text-3xl rounded-xl border-2 border-slate-700">--</div>
+      </div>
+      
+      <button id="btnCancel" class="w-full py-2 text-slate-400 text-[10px] uppercase font-bold">刪除所選區域</button>
+    </div>
+  </aside>
 
 <script>
 let state = {
@@ -111,7 +115,7 @@ let state = {
     viewScale: 1.0,
     posX: 0,
     posY: 0,
-    isDraggingPhoto: false, // 是否正在拖動照片
+    isDragging: false,
     dragStart: { x: 0, y: 0 }
 };
 
@@ -119,7 +123,7 @@ const dom = {
     fileInput: document.getElementById('fileInput'),
     canvas: document.getElementById('canvas'),
     overlay: document.getElementById('overlay'),
-    ctx: document.getElementById('canvas').getContext('2d', { alpha: false }),
+    ctx: document.getElementById('canvas').getContext('2d', { willReadFrequently: true }),
     octx: document.getElementById('overlay').getContext('2d'),
     container: document.getElementById('canvasContainer'),
     viewport: document.getElementById('viewport'),
@@ -128,7 +132,7 @@ const dom = {
     result: document.getElementById('result')
 };
 
-// --- 圖片載入 ---
+// --- 圖片處理 ---
 dom.fileInput.onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -158,54 +162,47 @@ dom.fileInput.onchange = (e) => {
     reader.readAsDataURL(file);
 };
 
-// --- 視角控制 ---
-function applyTransform() {
+// --- 視角變換 ---
+function updateTransform() {
     dom.container.style.transform = `translate(${state.posX}px, ${state.posY}px) scale(${state.viewScale})`;
 }
-
 function resetView() {
-    state.viewScale = 1.0;
-    state.posX = 0;
-    state.posY = 0;
-    applyTransform();
+    state.viewScale = 1.0; state.posX = 0; state.posY = 0;
+    updateTransform();
 }
-
-document.getElementById('btnZoomIn').onclick = () => { state.viewScale *= 1.2; applyTransform(); };
-document.getElementById('btnZoomOut').onclick = () => { state.viewScale /= 1.2; applyTransform(); };
+document.getElementById('btnZoomIn').onclick = () => { state.viewScale *= 1.2; updateTransform(); };
+document.getElementById('btnZoomOut').onclick = () => { state.viewScale /= 1.2; updateTransform(); };
 document.getElementById('btnZoomReset').onclick = resetView;
 
-// --- 座標轉換核心 ---
+// --- 核心座標轉換 ---
 function getCanvasPos(e) {
     const rect = dom.viewport.getBoundingClientRect();
     const cx = (e.touches && e.touches.length) ? e.touches[0].clientX : e.clientX;
     const cy = (e.touches && e.touches.length) ? e.touches[0].clientY : e.clientY;
     
-    // 扣除 Viewport 位置，並計算在當前 translate 與 scale 下的相對座標
+    // 計算公式：(螢幕座標 - 畫布容器位移 - 視窗邊界) / 縮放倍率
     return {
         x: (cx - rect.left - state.posX) / state.viewScale,
         y: (cy - rect.top - state.posY) / state.viewScale
     };
 }
 
+// --- 觸控/滑鼠互動 ---
 function handleStart(e) {
-    if (e.target.tagName === 'INPUT') return;
-    if (!state.imgLoaded) return;
-
+    if (e.target.tagName === 'INPUT' || !state.imgLoaded) return;
     const pos = getCanvasPos(e);
     
-    // 1. 檢查是否點擊到現有色塊
+    // 檢查點擊色塊
     const hit = state.regions.find(r => pos.x >= r.x && pos.x <= r.x+r.w && pos.y >= r.y && pos.y <= r.y+r.h);
     if (hit) {
         state.selectedId = hit.id;
-        refreshUI(); renderOverlay();
-        return;
+        refreshUI(); renderOverlay(); return;
     }
 
-    // 2. 判斷是「畫框模式」還是「拖動照片模式」
     if (state.mode) {
         state.current = { x0: pos.x, y0: pos.y, x: pos.x, y: pos.y };
     } else {
-        state.isDraggingPhoto = true;
+        state.isDragging = true;
         const cx = (e.touches && e.touches.length) ? e.touches[0].clientX : e.clientX;
         const cy = (e.touches && e.touches.length) ? e.touches[0].clientY : e.clientY;
         state.dragStart = { x: cx - state.posX, y: cy - state.posY };
@@ -214,7 +211,9 @@ function handleStart(e) {
 }
 
 function handleMove(e) {
+    if (!state.current && !state.isDragging) return;
     if (e.cancelable) e.preventDefault();
+    
     const cx = (e.touches && e.touches.length) ? e.touches[0].clientX : e.clientX;
     const cy = (e.touches && e.touches.length) ? e.touches[0].clientY : e.clientY;
 
@@ -222,10 +221,10 @@ function handleMove(e) {
         const pos = getCanvasPos(e);
         state.current.x = pos.x; state.current.y = pos.y;
         renderOverlay();
-    } else if (state.isDraggingPhoto) {
+    } else if (state.isDragging) {
         state.posX = cx - state.dragStart.x;
         state.posY = cy - state.dragStart.y;
-        applyTransform();
+        updateTransform();
     }
 }
 
@@ -241,18 +240,20 @@ function handleEnd() {
         }
     }
     state.current = null;
-    state.isDraggingPhoto = false;
+    state.isDragging = false;
     dom.container.style.cursor = 'grab';
     refreshUI(); renderOverlay();
 }
 
+// 註冊事件到 viewport
 dom.viewport.addEventListener('touchstart', handleStart, {passive: false});
-window.addEventListener('touchmove', handleMove, {passive: false});
-window.addEventListener('touchend', handleEnd);
+dom.viewport.addEventListener('touchmove', handleMove, {passive: false});
+dom.viewport.addEventListener('touchend', handleEnd);
 dom.viewport.addEventListener('mousedown', handleStart);
 window.addEventListener('mousemove', handleMove);
 window.addEventListener('mouseup', handleEnd);
 
+// --- 色彩分析 ---
 function getAvgColor(r) {
     const d = dom.ctx.getImageData(r.x, r.y, r.w, r.h).data;
     let rs=0, gs=0, bs=0, c=0;
@@ -261,4 +262,36 @@ function getAvgColor(r) {
 }
 
 function rgbToLab(r,g,b){
-    let [R,G,B] = [r/255,g/255,b/255].map(v => v > 0.04045 ? Math.pow((v+0.055)/1.055, 2.
+    let [R,G,B] = [r/255,g/255,b/255].map(v => v > 0.04045 ? Math.pow((v+0.055)/1.055, 2.4) : v/12.92);
+    let X = R*0.4124 + G*0.3576 + B*0.1804, Y = R*0.2126 + G*0.7152 + B*0.0722, Z = R*0.0193 + G*0.1192 + B*0.9505;
+    [X,Y,Z] = [X/0.95047, Y/1.0, Z/1.08883].map(v => v > 0.008856 ? Math.cbrt(v) : (7.787*v + 16/116));
+    return { L: (116*Y)-16, a: 500*(X-Y), b: 200*(Y-Z) };
+}
+
+function renderOverlay() {
+    dom.octx.clearRect(0,0,dom.overlay.width,dom.overlay.height);
+    state.regions.forEach(r => {
+        dom.octx.lineWidth = (r.id === state.selectedId) ? 10 : 5;
+        dom.octx.strokeStyle = r.type === 'standard' ? '#4f46e5' : '#10b981';
+        dom.octx.strokeRect(r.x, r.y, r.w, r.h);
+    });
+    if (state.current) {
+        dom.octx.setLineDash([10, 8]); dom.octx.strokeStyle = '#f59e0b';
+        dom.octx.strokeRect(state.current.x0, state.current.y0, state.current.x-state.current.x0, state.current.y-state.current.y0);
+        dom.octx.setLineDash([]);
+    }
+}
+
+function refreshUI() {
+    const stds = state.regions.filter(r => r.type === 'standard');
+    dom.standardsList.innerHTML = stds.length ? '' : '<p class="text-xs text-slate-400 text-center py-4 italic">尚未圈選色塊...</p>';
+    stds.forEach(r => {
+        const item = document.createElement('div');
+        item.className = `flex items-center gap-3 p-3 rounded-xl border ${r.id === state.selectedId ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 bg-white'}`;
+        item.innerHTML = `<div class="w-8 h-8 rounded-lg border shadow-inner" style="background:rgb(${r.avg.r},${r.avg.g},${r.avg.b})"></div>
+            <div class="flex-1"><input type="number" inputmode="decimal" class="std-input" placeholder="值" value="${r.conc !== null ? r.conc : ''}"></div>
+            <button class="text-rose-500 font-bold px-2">✕</button>`;
+        const input = item.querySelector('input');
+        input.ontouchstart = (e) => e.stopPropagation();
+        input.oninput = (e) => { r.conc = e.target.value === '' ? null : parseFloat(e.target.value); };
+        item.querySelector('button').onclick = (e) => { e.stopPropagation(); state.regions = state.regions.filter(rg => rg.id !== r.id); refreshUI();
